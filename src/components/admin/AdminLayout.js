@@ -77,7 +77,7 @@ export default function AdminLayout() {
       />
 
       {/* Topbar */}
-      <header style={{
+      <header className="admin-topbar" style={{
         position: 'fixed', top: 0, right: 0,
         left: mobileOpen ? 0 : (collapsed ? 'var(--sidebar-w-collapsed)' : 'var(--sidebar-w)'),
         height: 'var(--header-h)',
@@ -233,7 +233,7 @@ export default function AdminLayout() {
       </header>
 
       {/* Main content */}
-      <main style={{
+      <main className="admin-main" style={{
         marginLeft: mobileOpen ? 0 : (collapsed ? 'var(--sidebar-w-collapsed)' : 'var(--sidebar-w)'),
         marginTop: 'var(--header-h)',
         minHeight: 'calc(100vh - var(--header-h))',

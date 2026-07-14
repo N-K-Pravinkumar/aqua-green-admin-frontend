@@ -661,7 +661,8 @@ h1,h2,h3,h4 { font-family: 'Plus Jakarta Sans','Inter',sans-serif; font-weight: 
 @media (max-width: 1023px) {
   .admin-sidebar { transform: translateX(-100%); }
   .admin-sidebar.mobile-open { transform: translateX(0); }
-  .hide-mobile { display: none !important; }
+  .hide-mobile { display: none !important; }.admin-topbar { left: 0 !important; }
+  .admin-main   { margin-left: 0 !important; }
 }
 @media (min-width: 1024px) {
   .admin-sidebar { transform: translateX(0) !important; }

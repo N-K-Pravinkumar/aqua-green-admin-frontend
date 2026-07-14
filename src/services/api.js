@@ -4,7 +4,7 @@ import API_ROOT from '../config/apiRoot';
 const api = axios.create({
   // Uses REACT_APP_API_URL when set (e.g. on Render/production build).
   // Falls back to localhost for local development.
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8080/api',
+  baseURL: process.env.REACT_APP_API_URL || '${API_ROOT}/api',
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
 });

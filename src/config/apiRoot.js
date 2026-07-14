@@ -4,6 +4,6 @@
 //
 // REACT_APP_API_URL is expected to look like "https://your-backend.onrender.com/api".
 // This strips the trailing "/api" (if present) to get just the server root.
-const API_ROOT = (process.env.REACT_APP_API_URL || 'http://localhost:8080/api').replace(/\/api\/?$/, '');
+const API_ROOT = (process.env.REACT_APP_API_URL || '${API_ROOT}/api').replace(/\/api\/?$/, '');
 
 export default API_ROOT;

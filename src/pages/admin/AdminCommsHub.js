@@ -1,3 +1,4 @@
+import API_ROOT from '../../config/apiRoot';
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -221,7 +222,7 @@ export default function AdminCommsHub() {
     if(!qSaved)return;
     try{
       const token=localStorage.getItem('aga_token');
-      const r=await fetch(`http://localhost:8080/api/quotations/${qSaved.id}/pdf`,{headers:{Authorization:`Bearer ${token}`}});
+      const r=await fetch(`${API_ROOT}/api/quotations/${qSaved.id}/pdf`,{headers:{Authorization:`Bearer ${token}`}});
       if(!r.ok)throw new Error('PDF failed');
       const blob=await r.blob();
       const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
@@ -234,7 +235,7 @@ export default function AdminCommsHub() {
     if(!qSaved)return;
     try{
       const token=localStorage.getItem('aga_token');
-      const r=await fetch(`http://localhost:8080/api/templates/quotation/${qSaved.id}/pdf`,{headers:{Authorization:`Bearer ${token}`}});
+      const r=await fetch(`${API_ROOT}/api/templates/quotation/${qSaved.id}/pdf`,{headers:{Authorization:`Bearer ${token}`}});
       if(!r.ok)throw new Error('Word failed');
       const blob=await r.blob();
       const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
@@ -274,7 +275,7 @@ export default function AdminCommsHub() {
     if(!bSaved)return;
     try{
       const token=localStorage.getItem('aga_token');
-      const r=await fetch(`http://localhost:8080/api/sales/${bSaved.id}/invoice/pdf`,{headers:{Authorization:`Bearer ${token}`}});
+      const r=await fetch(`${API_ROOT}/api/sales/${bSaved.id}/invoice/pdf`,{headers:{Authorization:`Bearer ${token}`}});
       const blob=await r.blob();
       const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
       a.download=`Invoice-${bSaved.invoiceNumber}.pdf`; a.click(); URL.revokeObjectURL(a.href);

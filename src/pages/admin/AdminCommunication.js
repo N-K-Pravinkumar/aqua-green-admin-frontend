@@ -1,3 +1,4 @@
+import API_ROOT from '../../config/apiRoot';
 import { useState, useEffect } from 'react';
 import { Trash2 } from 'lucide-react';
 import { communicationAPI, customerAPI, templateAPI } from '../../services/api';
@@ -117,8 +118,8 @@ export default function AdminCommunication() {
   const handleTestEmail = async () => {
     setTestEmailLoading(true); setEmailError('');
     try {
-      const r = await fetch('http://localhost:8080/api/communications/test-email', {
-        method: 'POST',
+      const r = await fetch(`${API_ROOT}/api/communications/test-email`, {
+      method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('aga_token')}` },
         body: JSON.stringify({ email: testEmail || 'pravinkathirneels24@gmail.com' }),
       });

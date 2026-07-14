@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import API_ROOT from '../../config/apiRoot';
 import {
   FileText, FileSpreadsheet, Download, Calendar,
   TrendingUp, Users, ShoppingCart, Wrench,
@@ -122,7 +123,7 @@ function ReportCard({ report, dateRange }) {
       const params = buildParams();
       const url = `/api/reports/${report.key}/${format}${params ? '?' + params : ''}`;
       const token = localStorage.getItem('aga_token');
-      const response = await fetch('http://localhost:8080' + url, {
+      const response = await fetch(`${API_ROOT}${url}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 

@@ -1,3 +1,4 @@
+import API_ROOT from '../../config/apiRoot';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { customerAPI, serviceRequestAPI, saleAPI, quotationAPI, stockAPI, productAPI } from '../../services/api';
@@ -613,8 +614,8 @@ export default function AdminBilling() {
         sale:      `/api/sales/${saved.id}/invoice/pdf`,
       };
       const token = localStorage.getItem('aga_token');
-      const res = await fetch(`http://localhost:8080${urlMap[saved.type]}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(`${API_ROOT}${urlMap[saved.type]}`, {
+      headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('PDF generation failed');
       const blob = await res.blob();

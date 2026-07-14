@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import API_ROOT from '../../config/apiRoot';
 
 /**
  * ImageUploader — four ways to add an image:
@@ -62,7 +63,7 @@ export default function ImageUploader({
     fd.append('folder', folder);
     try {
       const token = localStorage.getItem('aga_token');
-      const r = await fetch('http://localhost:8080/api/upload/image', {
+      const r = await fetch(`${API_ROOT}/api/upload/image`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: fd,
@@ -137,8 +138,7 @@ export default function ImageUploader({
     setLoading(true); clr();
     try {
       const token = localStorage.getItem('aga_token');
-      const r = await fetch('http://localhost:8080/api/upload/image-from-url', {
-        method: 'POST',
+      const r = await fetch(`${API_ROOT}/api/upload/image-from-url`, {        method: 'POST',
         headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ url: urlInput.trim(), folder }),
       });

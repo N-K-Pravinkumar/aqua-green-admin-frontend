@@ -18,7 +18,7 @@ export function ConfirmModal({ isOpen, title, message, onConfirm, onCancel, dang
         </div>
       </div>
     </div>
-  );+
+  );
 }
 
 export function StatusBadge({ status }) {

@@ -141,30 +141,6 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Demo credentials */}
-            <div style={{ marginTop:22, padding:'14px 16px', background:'#f0fff0', borderRadius:12, border:'1px solid #c5e8d8' }}>
-              <div style={{ fontSize:11, fontWeight:700, color:'#009B00', marginBottom:10, textTransform:'uppercase', letterSpacing:'0.5px' }}>
-                Demo Access — click to fill
-              </div>
-              <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
-                {[
-                  ['Super Admin', 'mohanbabu@aquagreen.com', 'MohanAGA@2026', '#7c3aed', '#ede9fe'],
-                  ['Admin',       'admin@aquagreen.com',     'admin123',      '#2563eb', '#dbeafe'],
-                  ['Manager',     'senthil@aquagreen.com',   'mgr123',        '#0891b2', '#cffafe'],
-                  ['Employee',    'murugan@aquagreen.com',   'emp123',        '#009B00', '#d1fae5'],
-                ].map(([role, email, pwd, color, bg]) => (
-                  <button key={role} type="button" onClick={() => fillDemo(email, pwd)}
-                    style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:8, border:'1px solid #e5e7eb', background:'#fff', cursor:'pointer', textAlign:'left', transition:'all .15s' }}
-                    onMouseEnter={e => e.currentTarget.style.background = bg}
-                    onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
-                    <span style={{ background:bg, color, fontSize:9, padding:'2px 7px', borderRadius:8, fontWeight:700, minWidth:68, textAlign:'center', flexShrink:0 }}>{role}</span>
-                    <span style={{ fontSize:11, color:'#374151', fontFamily:'monospace' }}>{email}</span>
-                    <span style={{ fontSize:10, color:'#9ca3af', marginLeft:'auto', fontFamily:'monospace' }}>{pwd}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <p style={{ textAlign:'center', marginTop:18, fontSize:12 }}>
               <Link to="/" style={{ color:'#9ca3af' }}>← Back to Website</Link>
             </p>

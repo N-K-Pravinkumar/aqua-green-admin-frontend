@@ -15,7 +15,7 @@ export default function AdminServiceItems() {
   useEffect(()=>{document.getElementById('admin-page-title')&&(document.getElementById('admin-page-title').textContent='Service Management');},[]);
 
   const load=()=>{setLoading(true);serviceAPI.getAllAdmin().then(r=>setItems(r.data.data||[])).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));};
-  useEffect(load,[page]);
+  useEffect(load,[]);
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
 
   const handleSave=async()=>{

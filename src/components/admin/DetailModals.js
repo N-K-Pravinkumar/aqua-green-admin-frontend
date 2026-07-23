@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MessageCircle, Phone } from 'lucide-react';
-import { saleAPI, serviceRequestAPI, enquiryAPI, quotationAPI, customerAPI } from '../../services/api';
+import { saleAPI, serviceRequestAPI, enquiryAPI, quotationAPI, customerAPI, saleInvoiceAPI, serviceRequestExtAPI } from '../../services/api';
 
 function formatDate(dt) {
   if (!dt) return '—';
@@ -181,6 +181,7 @@ export function CustomerDetailModal({ customer, onClose }) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch]   = useState('');
+  const [sendingWa, setSendingWa] = useState(null); // holds the event index currently sending
 
   useEffect(() => {
     if (!customer) return;
@@ -192,6 +193,38 @@ export function CustomerDetailModal({ customer, onClose }) {
   }, [customer]);
 
   if (!customer) return null;
+
+  // Send an invoice/bill PDF via WhatsApp for a single timeline event.
+  // No PDF is stored anywhere — it's generated fresh, downloaded straight
+  // to this device, and WhatsApp opens at the same time with the number
+  // pre-filled (wa.me can't attach files, so this is the standard
+  // download-then-attach workaround).
+  const sendEventPdf = async (ev, index) => {
+    setSendingWa(index);
+    try {
+      const isService = ev.type === 'service';
+      const res = isService
+        ? await serviceRequestExtAPI.downloadInvoice(ev.raw.id)
+        : await saleInvoiceAPI.downloadInvoice(ev.raw.id);
+      const blob = res.data;
+      const num = isService ? (ev.raw.invoiceNumber || ev.raw.ticketNumber) : ev.raw.invoiceNumber;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${isService ? 'ServiceBill' : 'Invoice'}-${num || ev.raw.id}.pdf`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+
+      const digits = (customer.mobile || '').replace(/\D/g, '');
+      const mobile = digits.length === 10 ? `91${digits}` : digits;
+      const label = isService ? 'service invoice' : 'invoice';
+      const msg = `Hi ${customer.name || ''}, here is your ${label} ${num || ''} from Aqua Green Agencies. Attaching the PDF that just downloaded to this device.`;
+      window.open(`https://wa.me/${mobile}?text=${encodeURIComponent(msg)}`, '_blank');
+    } catch {
+      alert('Could not generate the PDF for this record.');
+    } finally {
+      setSendingWa(null);
+    }
+  };
 
   // Build unified event list
   const allEvents = [];
@@ -421,6 +454,20 @@ export function CustomerDetailModal({ customer, onClose }) {
                           <div style={{ fontSize: 9, color: '#bbb' }}>
                             {ev.date ? new Date(ev.date).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }) : ''}
                           </div>
+                          {(ev.type === 'service' || ev.type === 'sale') && (
+                            <button
+                              onClick={() => sendEventPdf(ev, i)}
+                              disabled={sendingWa === i}
+                              title="Download PDF and open WhatsApp to send it"
+                              style={{
+                                marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4,
+                                fontSize: 10, fontWeight: 700, color: '#fff', background: '#25D366',
+                                border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer',
+                              }}>
+                              <MessageCircle size={11} />
+                              {sendingWa === i ? 'Preparing…' : 'Send PDF'}
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

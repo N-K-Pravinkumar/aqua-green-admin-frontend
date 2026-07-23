@@ -39,7 +39,7 @@ const NAV_GROUPS = [
     items: [
       { to: '/admin/products',      label: 'Products',  icon: Tag, perm: 'PRODUCTS' },
       { to: '/admin/service-items', label: 'Services',  icon: Settings2, perm: 'SERVICES' },
-      { to: '/admin/stock',         label: 'Stock',     icon: Package, perm: 'STOCK',   badge: 'lowStock' },
+      { to: '/admin/stock',         label: 'Spares & Stock', icon: Package, perm: 'STOCK',   badge: 'lowStock' },
     ],
   },
   {

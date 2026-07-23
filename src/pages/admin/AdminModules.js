@@ -16,7 +16,7 @@ export function AdminQuotations() {
   useEffect(()=>{document.getElementById('admin-page-title')&&(document.getElementById('admin-page-title').textContent='Quotations');},[]);
 
   const load=()=>{setLoading(true);Promise.all([quotationAPI.getAll(),quotationAPI.getCounts()]).then(([r,cr])=>{setItems(r.data.data?.content || r.data.data || []);setCounts(cr.data.data||{});}).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));};
-  useEffect(load,[page]);
+  useEffect(load,[]);
 
   const filtered=filter==='ALL'?items:items.filter(i=>i.status===filter);
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
@@ -95,7 +95,8 @@ export function AdminQuotations() {
 }
 
 // ==================== STOCK ====================
-const S_EMPTY = { name:'',category:'SPARE_PART',openingStock:0,currentStock:0,minStock:5,unit:'UNITS' };
+const S_EMPTY = { name:'',category:'SPARE_PART',brand:'',description:'',imageUrl:'',price:'',openingStock:0,currentStock:0,minStock:5,unit:'UNITS' };
+const STOCK_CATEGORIES = ['SPARE_PART','FILTER','MEMBRANE','ELECTRICAL','PLUMBING','HARDWARE','HOUSING','PRODUCT'];
 
 export function AdminStock() {
   const [items,setItems]=useState([]);const [loading,setLoading]=useState(true);
@@ -104,23 +105,28 @@ export function AdminStock() {
   const [adjModal,setAdjModal]=useState(null);const [adjQty,setAdjQty]=useState(1);const [adjType,setAdjType]=useState('ADD');
   const {show,ToastEl}=useToast();
 
-  useEffect(()=>{document.getElementById('admin-page-title')&&(document.getElementById('admin-page-title').textContent='Stock Management');},[]);
+  useEffect(()=>{document.getElementById('admin-page-title')&&(document.getElementById('admin-page-title').textContent='Spares & Stock');},[]);
 
   const load=()=>{setLoading(true);stockAPI.getAll().then(r=>setItems(r.data.data?.content || r.data.data || [])).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));};
-  useEffect(load,[page]);
+  useEffect(load,[]);
 
   const filtered=catFilter==='ALL'?items:items.filter(i=>i.category===catFilter);
   const lowCount=items.filter(i=>i.currentStock<=i.minStock).length;
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
 
+  const openEdit = item => {
+    setForm({name:item.name,category:item.category,brand:item.brand||'',description:item.description||'',imageUrl:item.imageUrl||'',price:item.price||'',openingStock:item.openingStock,currentStock:item.currentStock,minStock:item.minStock,unit:item.unit||'UNITS'});
+    setEditItem(item);setModalOpen(true);
+  };
+
   const handleSave=async()=>{
     if(!form.name){show('Name required','error');return;}
     setSaving(true);
     try{
-      const data={...form,openingStock:parseInt(form.openingStock||0),currentStock:parseInt(form.currentStock||0),minStock:parseInt(form.minStock||5)};
+      const data={...form,price:form.price?parseFloat(form.price):null,openingStock:parseInt(form.openingStock||0),currentStock:parseInt(form.currentStock||0),minStock:parseInt(form.minStock||5)};
       if(editItem) await stockAPI.update(editItem.id,data);
       else await stockAPI.create(data);
-      show(editItem?'Updated':'Stock item created');setModalOpen(false);load();
+      show(editItem?'Updated':'Spare part created');setModalOpen(false);load();
     }catch{show('Failed','error');}finally{setSaving(false);}
   };
 
@@ -130,25 +136,38 @@ export function AdminStock() {
 
   const stockPct=item=>Math.min(100,Math.round((item.currentStock/Math.max(item.openingStock||1,1))*100));
   const stockColor=item=>item.currentStock<=item.minStock?'#E24B4A':item.currentStock<=(item.minStock*2)?'#EF9F27':'#0d8a00';
+  const catLabel=c=>c==='SPARE_PART'?'Spare Part':c==='PRODUCT'?'Product':c.charAt(0)+c.slice(1).toLowerCase();
 
   return(<div>{ToastEl}
     <div className="flex-between mb-16">
-      <div><div style={{fontSize:18,fontWeight:700}}>Stock Management</div>{lowCount>0&&<div style={{color:'#A32D2D',fontSize:12,fontWeight:600}}>⚠️ {lowCount} items below minimum stock</div>}</div>
-      <button className="btn btn-primary" onClick={()=>{setForm(S_EMPTY);setEditItem(null);setModalOpen(true);}}>+ Add Stock Item</button>
+      <div><div style={{fontSize:18,fontWeight:700}}>Spares & Stock</div><div className="text-muted text-sm">Manage genuine spare parts — photo, brand, price and stock, same as Products.</div>{lowCount>0&&<div style={{color:'#A32D2D',fontSize:12,fontWeight:600,marginTop:2}}>⚠️ {lowCount} items below minimum stock</div>}</div>
+      <button className="btn btn-primary" onClick={()=>{setForm(S_EMPTY);setEditItem(null);setModalOpen(true);}}>+ Add Spare Part</button>
     </div>
-    <div className="filter-bar">
-      {['ALL','PRODUCT','SPARE_PART'].map(c=><button key={c} className={`filter-btn${catFilter===c?' active':''}`} onClick={()=>setCatFilter(c)}>{c==='ALL'?`All (${items.length})`:c==='PRODUCT'?`Products (${items.filter(i=>i.category==='PRODUCT').length})`:`Spare Parts (${items.filter(i=>i.category==='SPARE_PART').length})`}</button>)}
+    <div className="filter-bar" style={{flexWrap:'wrap'}}>
+      <button className={`filter-btn${catFilter==='ALL'?' active':''}`} onClick={()=>setCatFilter('ALL')}>All ({items.length})</button>
+      {STOCK_CATEGORIES.map(c=>{
+        const n=items.filter(i=>i.category===c).length;
+        if(n===0 && c!=='SPARE_PART') return null;
+        return <button key={c} className={`filter-btn${catFilter===c?' active':''}`} onClick={()=>setCatFilter(c)}>{catLabel(c)} ({n})</button>;
+      })}
     </div>
     <div className="section-card">
       {loading?<div style={{padding:40,textAlign:'center',color:'#9aa0a6'}}>Loading…</div>:(
         <div className="table-wrap"><table className="data-table">
-          <thead><tr><th>Item Name</th><th>Category</th><th>Opening</th><th>Current</th><th>Min Stock</th><th>Level</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Photo</th><th>Item Name</th><th>Brand</th><th>Category</th><th>Price</th><th>Current</th><th>Min</th><th>Level</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
+            {filtered.length===0&&<tr><td colSpan={10} style={{padding:32,textAlign:'center',color:'#9aa0a6'}}>No spare parts in this category yet</td></tr>}
             {filtered.map(item=>(
               <tr key={item.id}>
-                <td style={{fontWeight:600}}>{item.name}</td>
-                <td><span className={`badge ${item.category==='PRODUCT'?'badge-new':'badge-followup'}`}>{item.category==='SPARE_PART'?'Spare Part':'Product'}</span></td>
-                <td style={{textAlign:'center'}}>{item.openingStock}</td>
+                <td>
+                  {item.imageUrl
+                    ? <img src={item.imageUrl} alt={item.name} style={{width:40,height:40,borderRadius:8,objectFit:'cover',border:'1px solid #e5e7eb',display:'block'}} onError={e=>{e.target.style.display='none';}} />
+                    : <div style={{width:40,height:40,borderRadius:8,background:'#f3f4f6',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,color:'#c1c5cb'}}>—</div>}
+                </td>
+                <td style={{fontWeight:600}}>{item.name}{item.description&&<div style={{fontWeight:400,fontSize:11,color:'#9aa0a6',maxWidth:220,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.description}</div>}</td>
+                <td style={{fontSize:12,color:'#5f6368'}}>{item.brand||'—'}</td>
+                <td><span className={`badge ${item.category==='PRODUCT'?'badge-new':'badge-followup'}`}>{catLabel(item.category)}</span></td>
+                <td style={{fontSize:13,fontWeight:600,color:item.price?'#009B00':'#c1c5cb'}}>{item.price?`₹${Number(item.price).toLocaleString('en-IN')}`:'—'}</td>
                 <td style={{textAlign:'center',fontWeight:700,color:stockColor(item)}}>{item.currentStock}</td>
                 <td style={{textAlign:'center'}}>{item.minStock}</td>
                 <td style={{minWidth:100}}>
@@ -158,7 +177,7 @@ export function AdminStock() {
                 <td><span className={`badge ${item.currentStock<=item.minStock?'badge-low':'badge-ok'}`}>{item.currentStock<=item.minStock?'LOW STOCK':'OK'}</span></td>
                 <td><div className="flex-gap" style={{gap:4}}>
                   <button className="btn btn-xs" style={{background:'#e0f9e0',color:'#009B00'}} onClick={()=>{setAdjModal(item);setAdjQty(1);setAdjType('ADD');}}>+/−</button>
-                  <button className="btn btn-xs btn-ghost" onClick={()=>{setForm({name:item.name,category:item.category,openingStock:item.openingStock,currentStock:item.currentStock,minStock:item.minStock,unit:item.unit||'UNITS'});setEditItem(item);setModalOpen(true);}}><Pencil size={13} style={{verticalAlign:'middle'}} /></button>
+                  <button className="btn btn-xs btn-ghost" onClick={()=>openEdit(item)}><Pencil size={13} style={{verticalAlign:'middle'}} /></button>
                   <button className="btn btn-xs btn-ghost" style={{color:'#A32D2D'}} onClick={()=>setDeleteId(item.id)}><Trash2 size={13} style={{verticalAlign:'middle'}} /></button>
                 </div></td>
               </tr>
@@ -182,17 +201,25 @@ export function AdminStock() {
     </div>)}
     {/* Create/Edit Modal */}
     {modalOpen&&(<div className="modal-overlay" onClick={()=>setModalOpen(false)}>
-      <div className="modal" onClick={e=>e.stopPropagation()}>
-        <div className="modal-header"><div className="modal-title">{editItem?'Edit Stock Item':'Add Stock Item'}</div><button className="modal-close" onClick={()=>setModalOpen(false)}>×</button></div>
+      <div className="modal modal-lg" onClick={e=>e.stopPropagation()} style={{maxWidth:640}}>
+        <div className="modal-header"><div className="modal-title">{editItem?'Edit Spare Part':'Add Spare Part'}</div><button className="modal-close" onClick={()=>setModalOpen(false)}>×</button></div>
+        <div style={{maxHeight:'65vh',overflowY:'auto',paddingRight:4}}>
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
           <div className="form-group"><label className="form-label">Item Name *</label><input className="form-input" value={form.name} onChange={e=>f('name',e.target.value)} /></div>
+          <ImageUploader label="Photo" value={form.imageUrl} onChange={url=>f('imageUrl',url)} folder="stock" />
           <div className="grid-2" style={{gap:12}}>
-            <div className="form-group"><label className="form-label">Category</label><select className="form-select" value={form.category} onChange={e=>f('category',e.target.value)}><option value="PRODUCT">Product</option><option value="SPARE_PART">Spare Part</option></select></div>
-            <div className="form-group"><label className="form-label">Unit</label><select className="form-select" value={form.unit} onChange={e=>f('unit',e.target.value)}>{['UNITS','PIECES','SETS'].map(u=><option key={u} value={u}>{u}</option>)}</select></div>
+            <div className="form-group"><label className="form-label">Brand</label><input className="form-input" value={form.brand} onChange={e=>f('brand',e.target.value)} placeholder="e.g. Merit, Shine, EAU…" /></div>
+            <div className="form-group"><label className="form-label">Price (₹)</label><input className="form-input" type="number" step="0.01" value={form.price} onChange={e=>f('price',e.target.value)} placeholder="Optional — shown to customers" /></div>
+          </div>
+          <div className="form-group"><label className="form-label">Description</label><textarea className="form-textarea" style={{minHeight:60}} value={form.description} onChange={e=>f('description',e.target.value)} placeholder="Spec details shown to customers…" /></div>
+          <div className="grid-2" style={{gap:12}}>
+            <div className="form-group"><label className="form-label">Category</label><select className="form-select" value={form.category} onChange={e=>f('category',e.target.value)}>{STOCK_CATEGORIES.map(c=><option key={c} value={c}>{catLabel(c)}</option>)}</select></div>
+            <div className="form-group"><label className="form-label">Unit</label><select className="form-select" value={form.unit} onChange={e=>f('unit',e.target.value)}>{['UNITS','PCS','MTR','SETS'].map(u=><option key={u} value={u}>{u}</option>)}</select></div>
             <div className="form-group"><label className="form-label">Opening Stock</label><input className="form-input" type="number" value={form.openingStock} onChange={e=>f('openingStock',e.target.value)} /></div>
             <div className="form-group"><label className="form-label">Current Stock</label><input className="form-input" type="number" value={form.currentStock} onChange={e=>f('currentStock',e.target.value)} /></div>
             <div className="form-group"><label className="form-label">Min Stock Alert</label><input className="form-input" type="number" value={form.minStock} onChange={e=>f('minStock',e.target.value)} /></div>
           </div>
+        </div>
         </div>
         <div className="modal-footer"><button className="btn btn-ghost" onClick={()=>setModalOpen(false)}>Cancel</button><button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving?<><span className="spinner"></span> Saving…</>:(editItem?'Update':'Create')}</button></div>
       </div>
@@ -214,7 +241,7 @@ export function AdminEmployees() {
   useEffect(()=>{document.getElementById('admin-page-title')&&(document.getElementById('admin-page-title').textContent='Employees');},[]);
 
   const load=()=>{setLoading(true);employeeAPI.getAll().then(r=>setItems(r.data.data?.content || r.data.data || [])).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));};
-  useEffect(load,[page]);
+  useEffect(load,[]);
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
 
   const handleSave=async()=>{
@@ -294,7 +321,7 @@ export function AdminBlogs() {
   useEffect(()=>{document.getElementById('admin-page-title')&&(document.getElementById('admin-page-title').textContent='Blog Management');},[]);
 
   const load=()=>{setLoading(true);blogAPI.getAll().then(r=>setItems(r.data.data?.content || r.data.data || [])).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));};
-  useEffect(load,[page]);
+  useEffect(load,[]);
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
 
   const genSlug=title=>title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');

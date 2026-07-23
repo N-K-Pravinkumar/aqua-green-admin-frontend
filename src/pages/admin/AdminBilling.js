@@ -9,7 +9,7 @@ import api from '../../services/api';
 // ─────────────────────────────────────────────────────────────
 const rupee = n => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 const uid = () => Math.random().toString(36).slice(2, 8).toUpperCase();
-const EMPTY_ITEM = { description: '', qty: 1, unitPrice: '', gstPct: 18, total: 0 };
+const EMPTY_ITEM = { description: '', qty: 1, unitPrice: '', gstPct: 18, total: 0, stockItemId: null, productId: null };
 
 function calcItem(it) {
   const base = (parseFloat(it.unitPrice) || 0) * (parseInt(it.qty) || 1);
@@ -229,12 +229,12 @@ function ItemsTable({ items, onChange, billType, stockItems, products }) {
   // Prefill from stock/product dropdown
   const fillFromStock = (i, id) => {
     const s = stockItems.find(s => String(s.id)===String(id));
-    if (s) update(i, 'description', `${s.name}${s.brand?` (${s.brand})`:''}`);
+    if (s) onChange(items.map((it,idx) => idx===i ? calcItem({ ...it, description: `${s.name}${s.brand?` (${s.brand})`:''}`, stockItemId: s.id }) : it));
   };
   const fillFromProduct = (i, id) => {
     const p = products.find(p => String(p.id)===String(id));
     if (p) {
-      const updated = calcItem({ ...items[i], description: p.name + (p.model?` — ${p.model}`:''), unitPrice: p.price||'' });
+      const updated = calcItem({ ...items[i], description: p.name + (p.model?` — ${p.model}`:''), unitPrice: p.price||'', productId: p.id });
       onChange(items.map((it,idx) => idx===i ? updated : it));
     }
   };
@@ -580,6 +580,7 @@ export default function AdminBilling() {
           customerName:   customer.name,
           customerMobile: customer.mobile,
           customerAddress:customer.address || '',
+          product:        firstItem.productId ? { id: firstItem.productId } : null,
           productName:    firstItem.description,
           quantity:       parseInt(firstItem.qty)||1,
           unitPrice:      parseFloat(firstItem.unitPrice)||0,

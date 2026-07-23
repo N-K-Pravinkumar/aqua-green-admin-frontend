@@ -161,6 +161,7 @@ export default function AdminLeads() {
                 ))}
               </tbody>
             </table>
+            <Pagination page={page} totalPages={pageInfo.totalPages} totalElements={pageInfo.totalElements} pageSize={20} onPageChange={p=>setPage(p)} />
           </div>
         )}
       </div>

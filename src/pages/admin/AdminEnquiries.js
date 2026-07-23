@@ -43,13 +43,13 @@ export default function AdminEnquiries() {
 
   const load = () => {
     setLoading(true);
-    Promise.all([enquiryAPI.getAll(), enquiryAPI.getCounts()]).then(([r, cr]) => {
+    Promise.all([enquiryAPI.getAll(undefined, page, PAGE_SIZE), enquiryAPI.getCounts()]).then(([r, cr]) => {
       const d = r.data.data; setEnquiries(d?.content||d||[]);
       setPageInfo({totalPages:d?.totalPages||1,totalElements:d?.totalElements||0});
       setCounts(cr.data.data || {});
     }).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(load, [page]);
 
   const filtered = filter === 'ALL' ? enquiries : enquiries.filter(e => e.status === filter);
 

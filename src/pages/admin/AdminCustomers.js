@@ -34,7 +34,7 @@ export default function AdminCustomers() {
       setPageInfo({totalPages:d?.totalPages||1,totalElements:d?.totalElements||0});
     }).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));
   };
-  useEffect(load,[]);
+  useEffect(load,[page]);
 
   const handleSearchChange = v => {
     setSearch(v);

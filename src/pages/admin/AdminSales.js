@@ -32,12 +32,12 @@ export function AdminSales() {
 
   const load = ()=>{
     setLoading(true);
-    Promise.all([saleAPI.getAll(),saleAPI.getStats(),productAPI.getAll()]).then(([r,sr,pr])=>{
+    Promise.all([saleAPI.getAll(page,PAGE_SIZE),saleAPI.getStats(),productAPI.getAll()]).then(([r,sr,pr])=>{
       const d=r.data.data; setSales(d?.content||d||[]); setStats(sr.data.data||{}); setProducts(pr.data.data||[]);
       setPageInfo({totalPages:d?.totalPages||1,totalElements:d?.totalElements||0});
     }).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));
   };
-  useEffect(load,[]);
+  useEffect(load,[page]);
 
   const f = (k,v) => setForm(p=>({...p,[k]:v}));
 
@@ -97,6 +97,7 @@ export function AdminSales() {
             </table>
           </div>
         )}
+        <Pagination page={page} totalPages={pageInfo.totalPages} totalElements={pageInfo.totalElements} pageSize={PAGE_SIZE} onPageChange={p=>setPage(p)} />
       </div>
       {modalOpen&&(
         <div className="modal-overlay" onClick={()=>setModalOpen(false)}>

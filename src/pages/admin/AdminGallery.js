@@ -27,7 +27,7 @@ export default function AdminGallery() {
     setLoading(true);
     galleryAPI.getAll().then(r=>setItems(r.data.data||[])).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));
   };
-  useEffect(load,[page]);
+  useEffect(load,[]);
 
   const openCreate = () => { setForm(EMPTY); setEditId(null); setModal(true); };
   const openEdit = item => { setForm({ title:item.title||'', description:item.description||'', imageUrl:item.imageUrl||'', imageAlt:item.imageAlt||'', category:item.category||'INSTALLATION', displayOrder:item.displayOrder||0, active:item.active!==false }); setEditId(item.id); setModal(true); };

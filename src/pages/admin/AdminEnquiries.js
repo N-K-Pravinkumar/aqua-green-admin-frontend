@@ -49,7 +49,9 @@ export default function AdminEnquiries() {
       setCounts(cr.data.data || {});
     }).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));
   };
-  useEffect(load, [page]);
+  useEffect(() => {
+    load();
+}, [page]);
 
   const filtered = filter === 'ALL' ? enquiries : enquiries.filter(e => e.status === filter);
 

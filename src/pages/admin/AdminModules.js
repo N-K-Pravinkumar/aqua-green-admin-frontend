@@ -16,7 +16,7 @@ export function AdminQuotations() {
   useEffect(()=>{document.getElementById('admin-page-title')&&(document.getElementById('admin-page-title').textContent='Quotations');},[]);
 
   const load=()=>{setLoading(true);Promise.all([quotationAPI.getAll(),quotationAPI.getCounts()]).then(([r,cr])=>{setItems(r.data.data?.content || r.data.data || []);setCounts(cr.data.data||{});}).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));};
-  useEffect(load,[]);
+  useEffect(load,[page]);
 
   const filtered=filter==='ALL'?items:items.filter(i=>i.status===filter);
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
@@ -107,7 +107,7 @@ export function AdminStock() {
   useEffect(()=>{document.getElementById('admin-page-title')&&(document.getElementById('admin-page-title').textContent='Stock Management');},[]);
 
   const load=()=>{setLoading(true);stockAPI.getAll().then(r=>setItems(r.data.data?.content || r.data.data || [])).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));};
-  useEffect(load,[]);
+  useEffect(load,[page]);
 
   const filtered=catFilter==='ALL'?items:items.filter(i=>i.category===catFilter);
   const lowCount=items.filter(i=>i.currentStock<=i.minStock).length;
@@ -214,7 +214,7 @@ export function AdminEmployees() {
   useEffect(()=>{document.getElementById('admin-page-title')&&(document.getElementById('admin-page-title').textContent='Employees');},[]);
 
   const load=()=>{setLoading(true);employeeAPI.getAll().then(r=>setItems(r.data.data?.content || r.data.data || [])).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));};
-  useEffect(load,[]);
+  useEffect(load,[page]);
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
 
   const handleSave=async()=>{
@@ -294,7 +294,7 @@ export function AdminBlogs() {
   useEffect(()=>{document.getElementById('admin-page-title')&&(document.getElementById('admin-page-title').textContent='Blog Management');},[]);
 
   const load=()=>{setLoading(true);blogAPI.getAll().then(r=>setItems(r.data.data?.content || r.data.data || [])).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));};
-  useEffect(load,[]);
+  useEffect(load,[page]);
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
 
   const genSlug=title=>title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');

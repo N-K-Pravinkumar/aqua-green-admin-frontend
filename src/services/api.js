@@ -336,3 +336,10 @@ export const alertAPI = {
   sendAlert:    (data)      => api.post('/alerts/send', data),
   sendAllDue:   (channel, days) => api.post(`/alerts/send-all-due?channel=${channel}&days=${days}`),
 };
+
+export const maintenanceAPI = {
+  // Distinct part names ever logged against a completed service (for the filter suggestion list)
+  getParts:   () => api.get('/maintenance/parts'),
+  // Customers whose most recent replacement of `partName` is older than `months`
+  getOverdue: (partName, months) => api.get('/maintenance/overdue', { params: { partName, months } }),
+};

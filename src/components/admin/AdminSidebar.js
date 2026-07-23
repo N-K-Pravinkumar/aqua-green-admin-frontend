@@ -31,6 +31,7 @@ const NAV_GROUPS = [
       { to: '/admin/quotations',        label: 'Quotations',        icon: FilePlus, perm: 'QUOTATIONS' },
       { to: '/admin/sales',             label: 'Sales',             icon: CreditCard, perm: 'SALES' },
       { to: '/admin/service-requests', label: 'Service Requests', icon: ClipboardList, perm: 'SERVICE_REQUESTS', badge: 'pendingServices' },
+      { to: '/admin/maintenance', label: 'Maintenance', icon: Wrench, perm: 'SERVICE_REQUESTS' },
     ],
   },
   {

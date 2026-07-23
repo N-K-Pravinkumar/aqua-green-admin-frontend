@@ -25,7 +25,7 @@ export default function AdminProducts() {
     setLoading(true);
     productAPI.getAllAdmin().then(r=>setProducts(r.data.data||[])).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));
   };
-  useEffect(load,[]);
+  useEffect(load,[page]);
 
   const filtered = catFilter==='ALL' ? products : products.filter(p=>p.category===catFilter);
 

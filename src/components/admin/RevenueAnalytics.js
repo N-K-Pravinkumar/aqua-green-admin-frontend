@@ -58,7 +58,7 @@ export default function RevenueAnalytics({ getAnalytics, label = 'Revenue' }) {
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [rangeKey, customFrom, customTo]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(load, [rangeKey, customFrom, customTo]);
 
   return (
     <div className="section-card" style={{ padding: 18, marginBottom: 16 }}>

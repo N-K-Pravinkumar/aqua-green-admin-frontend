@@ -340,6 +340,6 @@ export const alertAPI = {
 export const maintenanceAPI = {
   // Distinct part names ever logged against a completed service (for the filter suggestion list)
   getParts:   () => api.get('/maintenance/parts'),
-  // Customers whose most recent replacement of `partName` is older than `months`
-  getOverdue: (partName, months) => api.get('/maintenance/overdue', { params: { partName, months } }),
+  // Customers whose most recent replacement of `partName` is older than `days`
+  getOverdue: (partName, days) => api.get('/maintenance/overdue', { params: { partName, days } }),
 };

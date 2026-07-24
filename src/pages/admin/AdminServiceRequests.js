@@ -443,7 +443,7 @@ export default function AdminServiceRequests() {
           </div>
         </div>
 
-        <RevenueAnalytics getAnalytics={serviceRequestAPI.getAnalytics} label="Service Requests" />
+        <RevenueAnalytics getAnalytics={serviceRequestAPI.getAnalytics} getRevenueChart={serviceRequestAPI.getRevenueChart} label="Service Requests" />
 
         {/* Status tabs */}
         <div className="filter-bar">

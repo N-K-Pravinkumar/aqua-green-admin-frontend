@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const RANGE_OPTIONS = [
   { key: 'week',  label: 'This Week' },
@@ -41,12 +42,15 @@ function computeRange(key, customFrom, customTo) {
  * Months / Custom Range" selector. Reused identically on Sales and Service
  * Requests — just point `getAnalytics` at the matching API helper.
  */
-export default function RevenueAnalytics({ getAnalytics, label = 'Revenue' }) {
+export default function RevenueAnalytics({ getAnalytics, getRevenueChart, label = 'Revenue' }) {
   const [rangeKey, setRangeKey] = useState('month');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [chartGranularity, setChartGranularity] = useState('week');
+  const [chartData, setChartData] = useState([]);
+  const [chartLoading, setChartLoading] = useState(false);
 
   const load = () => {
     if (rangeKey === 'custom' && (!customFrom || !customTo)) return;
@@ -59,6 +63,16 @@ export default function RevenueAnalytics({ getAnalytics, label = 'Revenue' }) {
   };
 
   useEffect(load, [rangeKey, customFrom, customTo]);
+
+  useEffect(() => {
+    if (!getRevenueChart) return;
+    setChartLoading(true);
+    const count = chartGranularity === 'week' ? 8 : 9;
+    getRevenueChart(chartGranularity, count)
+      .then(r => setChartData(r.data.data || []))
+      .catch(() => setChartData([]))
+      .finally(() => setChartLoading(false));
+  }, [chartGranularity, getRevenueChart]);
 
   return (
     <div className="section-card" style={{ padding: 18, marginBottom: 16 }}>
@@ -100,6 +114,33 @@ export default function RevenueAnalytics({ getAnalytics, label = 'Revenue' }) {
           </div>
         </div>
       </div>
+
+      {getRevenueChart && (
+        <div style={{ marginTop: 20, borderTop: '1px solid #eee', paddingTop: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>Revenue Trend</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button className={`filter-btn${chartGranularity === 'week' ? ' active' : ''}`} style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => setChartGranularity('week')}>Weekly</button>
+              <button className={`filter-btn${chartGranularity === 'month' ? ' active' : ''}`} style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => setChartGranularity('month')}>Monthly</button>
+            </div>
+          </div>
+          <div style={{ width: '100%', height: 220 }}>
+            {chartLoading ? (
+              <div style={{ textAlign: 'center', color: '#9aa0a6', paddingTop: 80 }}>Loading chart…</div>
+            ) : (
+              <ResponsiveContainer>
+                <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `₹${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip formatter={v => [`₹${Number(v).toLocaleString('en-IN')}`, 'Revenue']} />
+                  <Bar dataKey="revenue" fill="#0F9D58" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Phone, MessageCircle, Wrench, AlertTriangle, X } from 'lucide-react';
 import { maintenanceAPI, templateAPI, customerAPI } from '../../services/api';
+import Pagination from '../../components/admin/Pagination';
 import { formatDate, useToast } from '../../components/admin/AdminHelpers';
 
 const DAY_OPTIONS = [30, 60, 90, 180, 365];
@@ -33,6 +34,8 @@ export default function AdminMaintenance() {
   const [searchedFor, setSearchedFor] = useState(null); // { partName, days } used for the last search
   const [templates, setTemplates] = useState([]);
   const [pickerRow, setPickerRow] = useState(null); // row currently choosing a template for
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
   const { show, ToastEl } = useToast();
 
   useEffect(() => {
@@ -53,6 +56,7 @@ export default function AdminMaintenance() {
       const r = await maintenanceAPI.getOverdue(partName.trim(), daysToUse);
       setResults(r.data.data || []);
       setSearchedFor({ partName: partName.trim(), days: daysToUse });
+      setPage(0);
     } catch {
       show('Search failed', 'error');
       setResults([]);
@@ -171,7 +175,7 @@ export default function AdminMaintenance() {
             <table className="data-table">
               <thead><tr><th>Customer</th><th>Mobile</th><th>Product</th><th>Last Replaced</th><th>Days Since</th><th>Actions</th></tr></thead>
               <tbody>
-                {results.map((row, i) => (
+                {results.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((row, i) => (
                   <tr key={i} style={{ cursor: 'pointer' }} onClick={() => openPicker(row)} title="Click to send a WhatsApp reminder">
                     <td style={{ fontWeight: 600 }}>{row.customerName || '—'}</td>
                     <td><a href={`tel:${row.customerMobile}`} onClick={e=>e.stopPropagation()} style={{ color: '#009B00', fontWeight: 600 }}>{row.customerMobile}</a></td>
@@ -195,6 +199,13 @@ export default function AdminMaintenance() {
               </tbody>
             </table>
           </div>
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(results.length / PAGE_SIZE))}
+            totalElements={results.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
         </div>
       )}
 

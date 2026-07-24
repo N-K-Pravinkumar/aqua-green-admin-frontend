@@ -94,7 +94,7 @@ export function AdminSales() {
         <div className="stat-card"><div className="stat-label">Monthly Revenue</div><div className="stat-value stat-green">{formatCurrency(stats.monthlyRevenue)}</div></div>
         <div className="stat-card"><div className="stat-label">Total Orders</div><div className="stat-value stat-blue">{stats.totalSales||0}</div></div>
       </div>
-      <RevenueAnalytics getAnalytics={saleAPI.getAnalytics} label="Sales" />
+      <RevenueAnalytics getAnalytics={saleAPI.getAnalytics} getRevenueChart={saleAPI.getRevenueChart} label="Sales" />
       <div className="section-card">
         {loading?<div style={{padding:40,textAlign:'center',color:'#9aa0a6'}}>Loading…</div>:(
           <div className="table-wrap">

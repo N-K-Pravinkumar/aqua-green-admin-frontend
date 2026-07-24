@@ -28,6 +28,109 @@ const TYPE_CONFIG = {
   quotation: { icon: '📋', color: '#EEEDFE', iconColor: '#3C3489', label: 'Quotation' },
 };
 
+function parseItems(json) {
+  if (!json) return [];
+  try {
+    const arr = JSON.parse(json);
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+/**
+ * Full itemized breakdown for a service request — what parts/products
+ * were used, at what price, and how that adds up to the final total.
+ * Usable both from the Service Requests table and from a customer's
+ * History timeline (same underlying service request object either way).
+ */
+export function ServiceDetailModal({ service, onClose, onEdit }) {
+  if (!service) return null;
+  const spareParts = parseItems(service.sparePartsJson);
+  const productsSold = parseItems(service.productsSoldJson);
+  const serviceCharge = Number(service.serviceCharge || 0);
+  const sparePartsTotal = Number(service.sparePartsTotal || 0);
+  const productsSoldTotal = Number(service.productsSoldTotal || 0);
+  const grandTotal = Number(service.totalBillAmount || (serviceCharge + sparePartsTotal + productsSoldTotal));
+
+  const rows = [
+    { label: 'Service Charge', qty: '', price: '', total: serviceCharge, show: serviceCharge > 0 },
+    ...spareParts.map(p => ({ label: p.name || 'Spare Part', qty: p.qty || 1, price: p.unitPrice ?? p.price ?? '', total: Number(p.lineTotal ?? p.unitPrice ?? p.price ?? 0) * (p.lineTotal ? 1 : (p.qty || 1)), show: true })),
+    ...productsSold.map(p => ({ label: p.productName || p.name || 'Product', qty: p.qty || 1, price: p.unitPrice ?? '', total: Number(p.lineTotal ?? (Number(p.unitPrice||0) * (p.qty||1))), show: true })),
+  ].filter(r => r.show);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal modal-lg" onClick={e=>e.stopPropagation()} style={{maxWidth:640}}>
+        <div className="modal-header">
+          <div className="modal-title">Service Details — {service.ticketNumber || service.serviceCode}</div>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+
+        <div style={{display:'flex', flexDirection:'column', gap:14}}>
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, fontSize:13}}>
+            <div><span style={{color:'#9aa0a6'}}>Customer:</span> <strong>{service.customerName || '—'}</strong></div>
+            <div><span style={{color:'#9aa0a6'}}>Mobile:</span> <strong>{service.customerMobile || '—'}</strong></div>
+            <div><span style={{color:'#9aa0a6'}}>Product:</span> {service.productName || '—'}</div>
+            <div><span style={{color:'#9aa0a6'}}>Technician:</span> {service.assignedTechnician || 'Unassigned'}</div>
+            <div><span style={{color:'#9aa0a6'}}>Status:</span> {service.status}</div>
+            <div><span style={{color:'#9aa0a6'}}>Payment:</span> {service.paymentStatus} {service.paymentMethod ? `(${service.paymentMethod})` : ''}</div>
+            <div><span style={{color:'#9aa0a6'}}>Completed:</span> {formatDate(service.completedAt)}</div>
+            <div><span style={{color:'#9aa0a6'}}>Ticket date:</span> {formatDate(service.createdAt)}</div>
+          </div>
+
+          {service.issueDescription && (
+            <div style={{fontSize:13, background:'#f8fafc', padding:10, borderRadius:8}}>
+              <span style={{color:'#9aa0a6'}}>Issue:</span> {service.issueDescription}
+            </div>
+          )}
+
+          <div>
+            <div style={{fontSize:12, fontWeight:700, color:'#6b7280', marginBottom:6}}>WHAT WAS DONE</div>
+            {rows.length === 0 ? (
+              <div style={{fontSize:13, color:'#9aa0a6', padding:12, textAlign:'center', background:'#f8fafc', borderRadius:8}}>No itemized charges recorded for this ticket.</div>
+            ) : (
+              <table className="data-table" style={{fontSize:13}}>
+                <thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th style={{textAlign:'right'}}>Amount</th></tr></thead>
+                <tbody>
+                  {rows.map((r,i)=>(
+                    <tr key={i}>
+                      <td>{r.label}</td>
+                      <td>{r.qty || '—'}</td>
+                      <td>{r.price !== '' ? `₹${Number(r.price).toLocaleString('en-IN')}` : '—'}</td>
+                      <td style={{textAlign:'right', fontWeight:600}}>₹{Number(r.total||0).toLocaleString('en-IN')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <div style={{display:'flex', justifyContent:'flex-end'}}>
+            <div style={{minWidth:220, fontSize:13}}>
+              {sparePartsTotal > 0 && <div style={{display:'flex', justifyContent:'space-between', padding:'4px 0'}}><span>Spare Parts</span><span>₹{sparePartsTotal.toLocaleString('en-IN')}</span></div>}
+              {productsSoldTotal > 0 && <div style={{display:'flex', justifyContent:'space-between', padding:'4px 0'}}><span>Products Sold</span><span>₹{productsSoldTotal.toLocaleString('en-IN')}</span></div>}
+              {serviceCharge > 0 && <div style={{display:'flex', justifyContent:'space-between', padding:'4px 0'}}><span>Service Charge</span><span>₹{serviceCharge.toLocaleString('en-IN')}</span></div>}
+              <div style={{display:'flex', justifyContent:'space-between', padding:'8px 0', borderTop:'2px solid #009B00', marginTop:4, fontWeight:800, fontSize:15, color:'#009B00'}}>
+                <span>TOTAL</span><span>₹{grandTotal.toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+          </div>
+
+          {service.technicianNotes && (
+            <div style={{fontSize:12, color:'#6b7280', background:'#fffbeb', padding:10, borderRadius:8}}>
+              <strong>Technician notes:</strong> {service.technicianNotes}
+            </div>
+          )}
+        </div>
+
+        <div className="modal-footer">
+          <button className="btn btn-ghost" onClick={onClose}>Close</button>
+          {onEdit && <button className="btn btn-primary" onClick={()=>{onClose(); onEdit(service);}}>Edit This Ticket</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function LeadDetailModal({ lead, onClose }) {
   const [timeline, setTimeline] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -182,6 +285,7 @@ export function CustomerDetailModal({ customer, onClose }) {
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch]   = useState('');
   const [sendingWa, setSendingWa] = useState(null); // holds the event index currently sending
+  const [viewingService, setViewingService] = useState(null);
 
   useEffect(() => {
     if (!customer) return;
@@ -454,6 +558,18 @@ export function CustomerDetailModal({ customer, onClose }) {
                           <div style={{ fontSize: 9, color: '#bbb' }}>
                             {ev.date ? new Date(ev.date).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }) : ''}
                           </div>
+                          {ev.type === 'service' && (
+                            <button
+                              onClick={() => setViewingService(ev.raw)}
+                              title="View itemized breakdown"
+                              style={{
+                                marginTop: 6, marginRight: 4, display: 'inline-flex', alignItems: 'center', gap: 4,
+                                fontSize: 10, fontWeight: 700, color: '#009B00', background: '#e0f9e0',
+                                border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer',
+                              }}>
+                              View
+                            </button>
+                          )}
                           {(ev.type === 'service' || ev.type === 'sale') && (
                             <button
                               onClick={() => sendEventPdf(ev, i)}
@@ -495,6 +611,9 @@ export function CustomerDetailModal({ customer, onClose }) {
           </div>
         </div>
       </div>
+      {viewingService && (
+        <ServiceDetailModal service={viewingService} onClose={()=>setViewingService(null)} />
+      )}
     </div>
   );
 }

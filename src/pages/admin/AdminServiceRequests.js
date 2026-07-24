@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import Pagination from '../../components/admin/Pagination';
 import SearchBox from '../../components/admin/SearchBox';
-import { AlertTriangle, CheckCircle, ChevronDown, Clock, CreditCard, Download, Edit, FileText, Hammer, Package, Plus, Receipt, Search, ShoppingCart, Trash2, Wrench, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, ChevronDown, Clock, CreditCard, Download, Edit, Eye, FileText, Hammer, Package, Plus, Receipt, Search, ShoppingCart, Trash2, Wrench, XCircle } from 'lucide-react';
 import { serviceRequestAPI, stockAPI, productAPI, serviceRequestExtAPI } from '../../services/api';
 import { useToast, ConfirmModal, formatDate, StatusBadge } from '../../components/admin/AdminHelpers';
 import PermissionGate from '../../components/admin/PermissionGate';
+import { ServiceDetailModal } from '../../components/admin/DetailModals';
 
 const STATUS_COLORS = {
   PENDING:     { color:'#92400e', bg:'#fef3c7', icon:<Clock size={11}/> },
@@ -350,6 +351,8 @@ export default function AdminServiceRequests() {
   const [saving, setSaving]       = useState(false);
   const [deleteId, setDeleteId]   = useState(null);
   const [billingModal, setBillingModal] = useState(null);
+  const [counts, setCounts] = useState({});
+  const [viewService, setViewService] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [importing, setImporting] = useState(false);
@@ -373,12 +376,18 @@ export default function AdminServiceRequests() {
 
   const load = () => {
     setLoading(true);
-    serviceRequestAPI.getAll(undefined, undefined, page, PAGE_SIZE).then(r=>{
+    const statusParam = statusFilter === 'ALL' ? undefined : statusFilter;
+    Promise.all([
+      serviceRequestAPI.getAll(statusParam, undefined, page, PAGE_SIZE),
+      serviceRequestAPI.getCounts(),
+    ]).then(([r, cr])=>{
       const d=r.data.data; setItems(d?.content||d||[]);
       setPageInfo({totalPages:d?.totalPages||1,totalElements:d?.totalElements||0});
+      setCounts(cr.data.data || {});
     }).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));
   };
-  useEffect(load, [page]);
+  useEffect(load, [page, statusFilter]);
+  const changeStatus = (s) => { setStatus(s); setPage(0); };
 
   const openCreate = () => { setForm(EMPTY); setEditId(null); setModal(true); };
   const openEdit   = sr  => { setForm({ customerName:sr.customerName||'', customerMobile:sr.customerMobile||'', customerAddress:sr.customerAddress||'', productName:sr.productName||'', productModel:sr.productModel||'', issueDescription:sr.issueDescription||'', assignedTechnician:sr.assignedTechnician||'', serviceCharge:sr.serviceCharge||'', status:sr.status||'PENDING', priority:sr.priority||'MEDIUM', technicianNotes:sr.technicianNotes||'' }); setEditId(sr.id); setModal(true); };
@@ -414,12 +423,8 @@ export default function AdminServiceRequests() {
 
   const filtered = items.filter(sr=>{
     const q = search.toLowerCase();
-    const matchSearch = !q || sr.customerName?.toLowerCase().includes(q) || sr.customerMobile?.includes(q) || sr.ticketNumber?.toLowerCase().includes(q) || sr.productName?.toLowerCase().includes(q);
-    const matchStatus = statusFilter==='ALL' || sr.status===statusFilter;
-    return matchSearch && matchStatus;
+    return !q || sr.customerName?.toLowerCase().includes(q) || sr.customerMobile?.includes(q) || sr.ticketNumber?.toLowerCase().includes(q) || sr.productName?.toLowerCase().includes(q);
   });
-
-  const counts = ['PENDING','ASSIGNED','IN_PROGRESS','COMPLETED','CANCELLED'].reduce((acc,s)=>({...acc,[s]:items.filter(x=>x.status===s).length}),{});
 
   return (
     <PermissionGate view="SERVICE_REQUESTS">
@@ -429,7 +434,7 @@ export default function AdminServiceRequests() {
         <div className="flex-between mb-20">
           <div>
             <div style={{ fontSize:20, fontWeight:800, display:'flex', alignItems:'center', gap:8 }}><Wrench size={20} color="#009B00"/>Service Requests</div>
-            <div style={{ fontSize:13, color:'#6b7280' }}>{items.length} total · {counts.PENDING||0} pending · {counts.COMPLETED||0} completed</div>
+            <div style={{ fontSize:13, color:'#6b7280' }}>{counts.TOTAL||0} total · {counts.PENDING||0} pending · {counts.COMPLETED||0} completed</div>
           </div>
           <div className="flex-gap">
             <button className="btn btn-ghost" onClick={()=>setImportOpen(true)} style={{ display:'flex', alignItems:'center', gap:7 }}><Download size={15}/>Import Legacy Bills</button>
@@ -439,8 +444,8 @@ export default function AdminServiceRequests() {
 
         {/* Status tabs */}
         <div className="filter-bar">
-          {[['ALL','All',items.length],['PENDING','Pending',counts.PENDING],['ASSIGNED','Assigned',counts.ASSIGNED],['IN_PROGRESS','In Progress',counts.IN_PROGRESS],['COMPLETED','Completed',counts.COMPLETED],['CANCELLED','Cancelled',counts.CANCELLED]].map(([k,l,c])=>(
-            <button key={k} className={`filter-btn${statusFilter===k?' active':''}`} onClick={()=>setStatus(k)}>{l} ({c||0})</button>
+          {[['ALL','All',counts.TOTAL],['PENDING','Pending',counts.PENDING],['ASSIGNED','Assigned',counts.ASSIGNED],['IN_PROGRESS','In Progress',counts.IN_PROGRESS],['COMPLETED','Completed',counts.COMPLETED],['CANCELLED','Cancelled',counts.CANCELLED]].map(([k,l,c])=>(
+            <button key={k} className={`filter-btn${statusFilter===k?' active':''}`} onClick={()=>changeStatus(k)}>{l} ({c||0})</button>
           ))}
         </div>
 
@@ -516,6 +521,10 @@ export default function AdminServiceRequests() {
                             <Download size={13}/>
                           </button>
                         )}
+                        {/* View — itemized breakdown */}
+                        <button onClick={()=>setViewService(sr)} title="View details" style={{ background:'#e0f9e0', border:'none', color:'#009B00', width:28, height:28, borderRadius:7, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          <Eye size={13}/>
+                        </button>
                         {/* Edit */}
                         <button onClick={()=>openEdit(sr)} title="Edit" style={{ background:'#f3f4f6', border:'none', color:'#374151', width:28, height:28, borderRadius:7, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
                           <Edit size={12}/>
@@ -588,6 +597,10 @@ export default function AdminServiceRequests() {
         <ConfirmModal isOpen={!!deleteId} title="Delete Ticket" message="This will permanently delete this service request." danger
           onConfirm={async()=>{ await serviceRequestAPI.delete(deleteId); setDeleteId(null); load(); show('Deleted'); }}
           onCancel={()=>setDeleteId(null)} />
+
+        {viewService && (
+          <ServiceDetailModal service={viewService} onClose={()=>setViewService(null)} onEdit={openEdit} />
+        )}
 
         {/* Import Legacy Bills Modal */}
         {importOpen && (

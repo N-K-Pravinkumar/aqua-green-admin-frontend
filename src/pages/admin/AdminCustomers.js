@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Eye, MessageCircle, Pencil, Phone, Trash2 } from 'lucide-react';
-import { customerAPI } from '../../services/api';
+import { customerAPI, seedCleanupAPI } from '../../services/api';
 import Pagination from '../../components/admin/Pagination';
 import SearchBox from '../../components/admin/SearchBox';
 import { ConfirmModal, formatDate, useToast } from '../../components/admin/AdminHelpers';
@@ -118,6 +118,19 @@ export default function AdminCustomers() {
               load();
             } catch { show('Failed', 'error'); }
           }}>Assign Codes</button>
+          <button className="btn btn-ghost" style={{color:'#A32D2D'}} onClick={async()=>{
+            try {
+              const r = await seedCleanupAPI.preview();
+              const d = r.data.data;
+              const total = d.fakeCustomers + d.fakeLeads + d.fakeSales + d.fakeServiceRequests + d.fakePayments;
+              if (total === 0) { show('No demo/seed data found — nothing to clean up'); return; }
+              const msg = `Found demo/test data:\n${d.fakeCustomers} customers, ${d.fakeLeads} leads, ${d.fakeSales} sales, ${d.fakeServiceRequests} service requests, ${d.fakePayments} payments.\n\nThis is auto-generated test data (Tamil-name-pool synthetic records), not your real business data. Delete it permanently?`;
+              if (!window.confirm(msg)) return;
+              const r2 = await seedCleanupAPI.execute();
+              show(r2.data.message);
+              load();
+            } catch { show('Cleanup failed', 'error'); }
+          }}>Remove Demo Data</button>
           <button className="btn btn-ghost" onClick={async()=>{
             if (!window.confirm('This will merge any customers sharing the same mobile number into one record. Safe to run — it only combines duplicates, nothing is lost. Continue?')) return;
             try {

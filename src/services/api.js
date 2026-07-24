@@ -91,6 +91,11 @@ export const customerAPI = {
   deletePhone: phoneId => api.delete(`/customers/phones/${phoneId}`),
 };
 
+export const seedCleanupAPI = {
+  preview: () => api.get('/admin/seed-cleanup/preview'),
+  execute: () => api.post('/admin/seed-cleanup/execute'),
+};
+
 export const leadAPI = {
   // Returns Page<Lead>
   getAll: (status, page = 0, size = 20) =>

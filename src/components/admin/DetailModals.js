@@ -26,6 +26,7 @@ const TYPE_CONFIG = {
   service: { icon: '🔧', color: '#FAEEDA', iconColor: '#633806', label: 'Service' },
   enquiry: { icon: '📩', color: '#E6F1FB', iconColor: '#0C447C', label: 'Enquiry' },
   quotation: { icon: '📋', color: '#EEEDFE', iconColor: '#3C3489', label: 'Quotation' },
+  message: { icon: '💬', color: '#DCF8E8', iconColor: '#0B7A3D', label: 'Message' },
 };
 
 function parseItems(json) {
@@ -518,6 +519,12 @@ export function CustomerDetailModal({ customer, onClose }) {
       badgeColor: { ACCEPTED:'#0F6E56', DRAFT:'#185FA5', SENT:'#854F0B', REJECTED:'#791F1F' }[q.status] || '#888',
       raw: q,
     }));
+    (data.messages || []).forEach(m => allEvents.push({
+      type: 'message', date: m.createdAt,
+      title: `${(m.action||'').replace('_MESSAGE_SENT','').replace('_',' ')} message sent`,
+      sub: m.remarks || 'No details',
+      raw: m,
+    }));
     allEvents.sort((a, b) => new Date(b.date) - new Date(a.date));
   }
 
@@ -536,6 +543,7 @@ export function CustomerDetailModal({ customer, onClose }) {
     { key: 'service',   label: 'Services',   count: (data?.serviceRequests||[]).length },
     { key: 'sale',      label: 'Sales',      count: (data?.sales||[]).length },
     { key: 'quotation', label: 'Quotations', count: (data?.quotations||[]).length },
+    { key: 'message',   label: 'Messages',   count: (data?.messages||[]).length },
   ];
 
   const filtered = allEvents

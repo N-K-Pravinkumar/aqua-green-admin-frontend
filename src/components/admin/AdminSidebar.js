@@ -27,8 +27,6 @@ const NAV_GROUPS = [
     section: 'Operations',
     items: [
       { to: '/admin/billing',           label: 'Billing',           icon: Receipt,      perm: 'SALES' },
-      { to: '/admin/comms-hub',         label: 'Comms & Billing Hub', icon: Bell, perm: 'SALES' },
-      { to: '/admin/quotations',        label: 'Quotations',        icon: FilePlus, perm: 'QUOTATIONS' },
       { to: '/admin/sales',             label: 'Sales',             icon: CreditCard, perm: 'SALES' },
       { to: '/admin/service-requests', label: 'Service Requests', icon: ClipboardList, perm: 'SERVICE_REQUESTS', badge: 'pendingServices' },
       { to: '/admin/maintenance', label: 'Maintenance', icon: Wrench, perm: 'SERVICE_REQUESTS' },
@@ -46,8 +44,6 @@ const NAV_GROUPS = [
     section: 'Documents',
     items: [
       { to: '/admin/templates',    label: 'Templates',     icon: FileText, perm: 'TEMPLATES' },
-      { to: '/admin/communication',label: 'Communication', icon: Send, perm: 'COMMUNICATION' },
-      { to: '/admin/sms',          label: 'SMS',           icon: Smartphone, perm: 'COMMUNICATION' },
     ],
   },
   {

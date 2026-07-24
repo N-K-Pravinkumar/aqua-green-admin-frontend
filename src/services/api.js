@@ -89,6 +89,8 @@ export const customerAPI = {
   getPhones: id => api.get(`/customers/${id}/phones`),
   addPhone: (id, phone, label) => api.post(`/customers/${id}/phones`, { phone, label }),
   deletePhone: phoneId => api.delete(`/customers/phones/${phoneId}`),
+  // Logs a sent WhatsApp/SMS message to the customer's History timeline
+  logMessage: (customerId, channel, context) => api.post('/customers/log-message', { customerId, channel, context }),
 };
 
 export const seedCleanupAPI = {
@@ -123,6 +125,7 @@ export const saleAPI = {
   // Returns Page<Sale>
   getAll: (page = 0, size = 20) => api.get('/sales', { params: { page, size } }),
   getStats: () => api.get('/sales/stats'),
+  getAnalytics: (from, to) => api.get('/sales/analytics', { params: { from, to } }),
   getById: id => api.get(`/sales/${id}`),
   create: data => api.post('/sales', data),
   update: (id, data) => api.put(`/sales/${id}`, data),
@@ -136,6 +139,7 @@ export const serviceRequestAPI = {
   getAll: (status, technician, page = 0, size = 20) =>
     api.get('/service-requests', { params: { ...(status ? { status } : {}), ...(technician ? { technician } : {}), page, size } }),
   getCounts: () => api.get('/service-requests/counts'),
+  getAnalytics: (from, to) => api.get('/service-requests/analytics', { params: { from, to } }),
   getById: id => api.get(`/service-requests/${id}`),
   create: data => api.post('/service-requests', data),
   update: (id, data) => api.put(`/service-requests/${id}`, data),

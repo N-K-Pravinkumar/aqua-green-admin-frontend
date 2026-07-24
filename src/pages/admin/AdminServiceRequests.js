@@ -4,6 +4,7 @@ import SearchBox from '../../components/admin/SearchBox';
 import { AlertTriangle, CheckCircle, ChevronDown, Clock, CreditCard, Download, Edit, Eye, FileText, Hammer, Package, Plus, Receipt, Search, ShoppingCart, Trash2, Wrench, XCircle } from 'lucide-react';
 import { serviceRequestAPI, stockAPI, productAPI, serviceRequestExtAPI } from '../../services/api';
 import { useToast, ConfirmModal, formatDate, StatusBadge } from '../../components/admin/AdminHelpers';
+import RevenueAnalytics from '../../components/admin/RevenueAnalytics';
 import PermissionGate from '../../components/admin/PermissionGate';
 import { ServiceDetailModal } from '../../components/admin/DetailModals';
 
@@ -441,6 +442,8 @@ export default function AdminServiceRequests() {
             <button className="btn btn-primary" onClick={openCreate} style={{ display:'flex', alignItems:'center', gap:7 }}><Plus size={15}/>New Ticket</button>
           </div>
         </div>
+
+        <RevenueAnalytics getAnalytics={serviceRequestAPI.getAnalytics} label="Service Requests" />
 
         {/* Status tabs */}
         <div className="filter-bar">

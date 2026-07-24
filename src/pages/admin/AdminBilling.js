@@ -401,7 +401,7 @@ function PaymentStep({ billType, form, onChange }) {
 // ─────────────────────────────────────────────────────────────
 // STEP 5 — Review + Save + Download PDF
 // ─────────────────────────────────────────────────────────────
-function ReviewStep({ customer, billType, items, payForm, onSave, saved, onDownload, onReset, saving, downloading }) {
+function ReviewStep({ customer, billType, items, payForm, onSave, saved, onDownload, onSendWhatsapp, sendingWhatsapp, onReset, saving, downloading }) {
   const totals = calcTotals(items);
   const typeLabel = { service:'Service Bill', sales:'Sales Invoice', quotation:'Quotation' }[billType];
 
@@ -459,6 +459,10 @@ function ReviewStep({ customer, billType, items, payForm, onSave, saved, onDownl
                 onClick={onDownload} disabled={downloading}>
                 {downloading ? 'Generating PDF…' : '📥 Download PDF'}
               </button>
+              <button className="btn" style={{ flex:2, fontSize:14, padding:'12px', background:'#25D366', color:'#fff', border:'none' }}
+                onClick={onSendWhatsapp} disabled={sendingWhatsapp} title={customer?.mobile ? `Send to ${customer.mobile}` : 'No mobile number on file'}>
+                {sendingWhatsapp ? 'Preparing…' : '💬 Send as PDF to WhatsApp'}
+              </button>
               <button className="btn btn-ghost" style={{ flex:1 }} onClick={onReset}>
                 New bill
               </button>
@@ -484,6 +488,7 @@ export default function AdminBilling() {
   });
   const [saving, setSaving]       = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
   const [saved, setSaved]         = useState(null); // { type, id, num }
   const [toast, setToast]         = useState(null);
   const [stockItems, setStockItems] = useState([]);
@@ -632,6 +637,50 @@ export default function AdminBilling() {
     setDownloading(false);
   };
 
+  // ── Send as PDF via WhatsApp ─────────────────────────────────
+  // No PDF is stored anywhere — generated fresh, downloaded straight to
+  // this device. WhatsApp's wa.me links can't attach files directly, so
+  // this downloads the PDF and opens the customer's chat at the same
+  // time — just attach the file that was downloaded.
+  const handleSendWhatsapp = async () => {
+    if (!saved) return;
+    if (!customer?.mobile) { notify('No mobile number on file for this customer', 'error'); return; }
+    setSendingWhatsapp(true);
+    try {
+      const urlMap = {
+        quotation: `/api/quotations/${saved.id}/pdf`,
+        service:   `/api/service-requests/${saved.id}/invoice/pdf`,
+        sale:      `/api/sales/${saved.id}/invoice/pdf`,
+      };
+      const token = localStorage.getItem('aga_token');
+      const res = await fetch(`${API_ROOT}${urlMap[saved.type]}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error('PDF generation failed');
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${saved.type==='quotation'?'Quotation':saved.type==='service'?'ServiceBill':'Invoice'}-${saved.num}.pdf`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+
+      const digits = customer.mobile.replace(/\D/g, '');
+      const mobile = digits.length === 10 ? `91${digits}` : digits;
+      const label = saved.type==='quotation' ? 'quotation' : saved.type==='service' ? 'service invoice' : 'invoice';
+      const message = `Hi ${customer.name || ''}, here is your ${label} ${saved.num} from Aqua Green Agencies. Attaching the PDF that just downloaded to this device.`;
+      window.open(`https://wa.me/${mobile}?text=${encodeURIComponent(message)}`, '_blank');
+      notify('PDF downloaded — attach it in the WhatsApp chat that just opened');
+
+      // Log this to the customer's timeline
+      try {
+        await api.post('/customers/log-message', {
+          customerId: customer.id, channel: 'WHATSAPP', context: `${label} ${saved.num}`,
+        });
+      } catch { /* logging is best-effort — don't block the send on it */ }
+    } catch (e) {
+      notify(e.message || 'Could not prepare invoice', 'error');
+    }
+    setSendingWhatsapp(false);
+  };
+
   const canProceed = !!customer;
 
   return (
@@ -678,6 +727,7 @@ export default function AdminBilling() {
             <ReviewStep
               customer={customer} billType={billType} items={items} payForm={payForm}
               onSave={handleSave} saved={saved} onDownload={handleDownload}
+              onSendWhatsapp={handleSendWhatsapp} sendingWhatsapp={sendingWhatsapp}
               onReset={reset} saving={saving} downloading={downloading}
             />
           </>

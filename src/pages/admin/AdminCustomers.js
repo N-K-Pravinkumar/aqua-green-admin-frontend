@@ -122,9 +122,9 @@ export default function AdminCustomers() {
             try {
               const r = await seedCleanupAPI.preview();
               const d = r.data.data;
-              const total = d.fakeCustomers + d.fakeLeads + d.fakeSales + d.fakeServiceRequests + d.fakePayments;
+              const total = d.fakeCustomers + d.fakeLeads + d.fakeSales + d.fakeServiceRequests + d.fakePayments + (d.fakeQuotations||0) + (d.fakeEnquiries||0);
               if (total === 0) { show('No demo/seed data found — nothing to clean up'); return; }
-              const msg = `Found demo/test data:\n${d.fakeCustomers} customers, ${d.fakeLeads} leads, ${d.fakeSales} sales, ${d.fakeServiceRequests} service requests, ${d.fakePayments} payments.\n\nThis is auto-generated test data (Tamil-name-pool synthetic records), not your real business data. Delete it permanently?`;
+              const msg = `Found demo/test data:\n${d.fakeCustomers} customers, ${d.fakeLeads} leads, ${d.fakeSales} sales, ${d.fakeServiceRequests} service requests, ${d.fakePayments} payments, ${d.fakeQuotations||0} quotations, ${d.fakeEnquiries||0} enquiries.\n\nThis is auto-generated test data (Tamil-name-pool synthetic records), not your real business data. Delete it permanently?`;
               if (!window.confirm(msg)) return;
               const r2 = await seedCleanupAPI.execute();
               show(r2.data.message);

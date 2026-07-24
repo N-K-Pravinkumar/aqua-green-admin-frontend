@@ -5,6 +5,7 @@ import Pagination from '../../components/admin/Pagination';
 import SearchBox from '../../components/admin/SearchBox';
 import { saleAPI, customerAPI, productAPI } from '../../services/api';
 import { ConfirmModal, formatCurrency, formatDate, useToast } from '../../components/admin/AdminHelpers';
+import RevenueAnalytics from '../../components/admin/RevenueAnalytics';
 
 const EMPTY_SALE = { customerName:'',productName:'',quantity:1,unitPrice:'',totalAmount:'',salesPerson:'',invoiceNumber:'',paymentStatus:'PAID',paymentMethod:'UPI' };
 const STAFF = ['Murugan K','Senthil K','Karthik R','Arun Kumar'];
@@ -93,6 +94,7 @@ export function AdminSales() {
         <div className="stat-card"><div className="stat-label">Monthly Revenue</div><div className="stat-value stat-green">{formatCurrency(stats.monthlyRevenue)}</div></div>
         <div className="stat-card"><div className="stat-label">Total Orders</div><div className="stat-value stat-blue">{stats.totalSales||0}</div></div>
       </div>
+      <RevenueAnalytics getAnalytics={saleAPI.getAnalytics} label="Sales" />
       <div className="section-card">
         {loading?<div style={{padding:40,textAlign:'center',color:'#9aa0a6'}}>Loading…</div>:(
           <div className="table-wrap">

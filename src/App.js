@@ -23,15 +23,11 @@ const AdminMaintenance = lazy(() => import('./pages/admin/AdminMaintenance'));
 const AdminSalesPage       = lazy(() => import('./pages/admin/AdminSales').then(m => ({ default: m.AdminSales })));
 const AdminReports         = lazy(() => import('./pages/admin/AdminReports'));
 const AdminTemplates       = lazy(() => import('./pages/admin/AdminTemplates'));
-const AdminCommunication   = lazy(() => import('./pages/admin/AdminCommunication'));
 const AdminGallery         = lazy(() => import('./pages/admin/AdminGallery'));
 const AdminUsers           = lazy(() => import('./pages/admin/AdminUsers'));
-const AdminSms             = lazy(() => import('./pages/admin/AdminSms'));
 const AdminBilling         = lazy(() => import('./pages/admin/AdminBilling'));
 const AdminImport          = lazy(() => import('./pages/admin/AdminImport'));
-const AdminCommsHub        = lazy(() => import('./pages/admin/AdminCommsHub'));
 // Named exports from AdminModules
-const AdminQuotations  = lazy(() => import('./pages/admin/AdminModules').then(m => ({ default: m.AdminQuotations })));
 const AdminStock       = lazy(() => import('./pages/admin/AdminModules').then(m => ({ default: m.AdminStock })));
 const AdminEmployees   = lazy(() => import('./pages/admin/AdminModules').then(m => ({ default: m.AdminEmployees })));
 const AdminBlogs       = lazy(() => import('./pages/admin/AdminModules').then(m => ({ default: m.AdminBlogs })));
@@ -69,18 +65,14 @@ export default function App() {
             <Route path="service-requests" element={<Suspense fallback={<AdminFallback />}><AdminServiceRequests /></Suspense>} />
             <Route path="maintenance" element={<Suspense fallback={<AdminFallback />}><AdminMaintenance /></Suspense>} />
             <Route path="sales"            element={<Suspense fallback={<AdminFallback />}><AdminSalesPage /></Suspense>} />
-            <Route path="quotations"       element={<Suspense fallback={<AdminFallback />}><AdminQuotations /></Suspense>} />
             <Route path="stock"            element={<Suspense fallback={<AdminFallback />}><AdminStock /></Suspense>} />
             <Route path="employees"        element={<Suspense fallback={<AdminFallback />}><AdminEmployees /></Suspense>} />
             <Route path="users"            element={<Suspense fallback={<AdminFallback />}><AdminUsers /></Suspense>} />
             <Route path="blogs"            element={<Suspense fallback={<AdminFallback />}><AdminBlogs /></Suspense>} />
             <Route path="reports"          element={<Suspense fallback={<AdminFallback />}><AdminReports /></Suspense>} />
             <Route path="templates"        element={<Suspense fallback={<AdminFallback />}><AdminTemplates /></Suspense>} />
-            <Route path="communication"    element={<Suspense fallback={<AdminFallback />}><AdminCommunication /></Suspense>} />
             <Route path="gallery"          element={<Suspense fallback={<AdminFallback />}><AdminGallery /></Suspense>} />
-            <Route path="sms"              element={<Suspense fallback={<AdminFallback />}><AdminSms /></Suspense>} />
             <Route path="billing"          element={<Suspense fallback={<AdminFallback />}><AdminBilling /></Suspense>} />
-            <Route path="comms-hub"        element={<Suspense fallback={<AdminFallback />}><AdminCommsHub /></Suspense>} />
             <Route path="import"           element={<Suspense fallback={<AdminFallback />}><AdminImport /></Suspense>} />
           </Route>
         </Routes>

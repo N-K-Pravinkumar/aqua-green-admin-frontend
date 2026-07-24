@@ -5,6 +5,7 @@ import SearchBox from '../../components/admin/SearchBox';
 import { useNavigate } from 'react-router-dom';
 import { enquiryAPI } from '../../services/api';
 import { ConfirmModal, formatDateTime, useToast } from '../../components/admin/AdminHelpers';
+import { EnquiryDetailModal } from '../../components/admin/DetailModals';
 
 const STATUSES = ['ALL','NEW','CONTACTED','CONVERTED','CLOSED'];
 
@@ -14,6 +15,7 @@ export default function AdminEnquiries() {
   const [counts, setCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState(null);
+  const [viewEnquiry, setViewEnquiry] = useState(null);
   const [search, setSearch] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [page, setPage] = useState(0);
@@ -115,6 +117,7 @@ export default function AdminEnquiries() {
                             await enquiryAPI.updateStatus(e.id, 'CONVERTED');
                             navigate(`/admin/comms-hub?mobile=${e.mobile}&name=${encodeURIComponent(e.customerName)}&tab=billing`);
                           }}>🧾 Bill</button>
+                        <button className="btn btn-xs" style={{background:'#e0f9e0',color:'#009B00',fontWeight:700,border:'none'}} onClick={()=>setViewEnquiry(e)}>👁 View</button>
                         <button className="btn btn-xs btn-ghost" style={{color:'#A32D2D'}} onClick={()=>setDeleteId(e.id)}><Trash2 size={13} style={{verticalAlign:'middle'}} /></button>
                       </div>
                     </td>
@@ -128,6 +131,7 @@ export default function AdminEnquiries() {
       </div>
 
       <ConfirmModal isOpen={!!deleteId} title="Delete Enquiry" message="Delete this enquiry record?" danger onConfirm={async()=>{await enquiryAPI.delete(deleteId);setDeleteId(null);load();show('Deleted');}} onCancel={()=>setDeleteId(null)} />
+      <EnquiryDetailModal enquiry={viewEnquiry} onClose={()=>setViewEnquiry(null)} />
     </div>
   );
 }

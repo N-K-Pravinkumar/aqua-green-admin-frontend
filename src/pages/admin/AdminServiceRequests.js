@@ -627,7 +627,7 @@ export default function AdminServiceRequests() {
                 {importResult && (
                   <div style={{marginTop:12,padding:12,borderRadius:8,background:importResult.skipped>0?'#fff7ed':'#e0f9e0'}}>
                     <div style={{fontWeight:700,fontSize:13}}>
-                      ✓ {importResult.created} imported{importResult.skipped>0?`, ⚠ ${importResult.skipped} skipped`:''}
+                      ✓ {importResult.created} imported{importResult.duplicates>0?`, ${importResult.duplicates} already existed`:''}{importResult.skipped>0?`, ⚠ ${importResult.skipped} skipped`:''}
                     </div>
                     {importResult.errors?.length>0 && (
                       <div style={{marginTop:8,fontSize:11,color:'#92400e',maxHeight:120,overflowY:'auto'}}>

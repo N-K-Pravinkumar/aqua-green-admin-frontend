@@ -128,7 +128,7 @@ export const saleAPI = {
   update: (id, data) => api.put(`/sales/${id}`, data),
   delete: id => api.delete(`/sales/${id}`),
   // Paste tab-separated rows: Name / Address / Phone1/Phone2 / Product / Date / Amount
-  importLegacySales: (text) => api.post('/sales/import/legacy-sales', { text }),
+  importLegacySales: (text) => api.post('/sales/import/legacy-sales', { text }, { timeout: 300000 }),
 };
 
 export const serviceRequestAPI = {
@@ -332,7 +332,7 @@ export const serviceRequestExtAPI = {
   downloadInvoice: (id) => api.get(`/service-requests/${id}/invoice/pdf`, { responseType: 'blob' }),
   updateStatus:    (id, status) => api.patch(`/service-requests/${id}/status?status=${status}`),
   // Paste tab-separated rows copied straight from a spreadsheet — one historical bill per line.
-  importLegacyBills: (text) => api.post('/service-requests/import/legacy-bills', { text }),
+  importLegacyBills: (text) => api.post('/service-requests/import/legacy-bills', { text }, { timeout: 300000 }),
 };
 
 export const saleInvoiceAPI = {

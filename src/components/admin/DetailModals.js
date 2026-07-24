@@ -279,6 +279,152 @@ export function LeadDetailModal({ lead, onClose }) {
   );
 }
 
+export function EnquiryDetailModal({ enquiry, onClose }) {
+  const [timeline, setTimeline] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedDate, setExpandedDate] = useState(null);
+
+  useEffect(() => {
+    if (!enquiry) return;
+    Promise.all([
+      saleAPI.getAll(),
+      serviceRequestAPI.getAll(),
+      enquiryAPI.getAll(),
+      quotationAPI.getAll(),
+    ]).then(([sR, srR, eR, qR]) => {
+      const mobile = enquiry.mobile?.replace(/\s/g,'');
+      const events = [];
+
+      (sR.data.data||[]).filter(s => s.customerName?.toLowerCase()===enquiry.customerName?.toLowerCase() || s.customerMobile?.replace(/\s/g,'')===mobile)
+        .forEach(s => events.push({ type:'sale', date:s.createdAt, title:`Purchase — ${s.productName}`, sub:`Invoice: ${s.invoiceNumber} · ${s.paymentStatus}`, amount:s.totalAmount, raw:s }));
+
+      (srR.data.data||[]).filter(s => s.customerName?.toLowerCase()===enquiry.customerName?.toLowerCase() || s.customerMobile?.replace(/\s/g,'')===mobile)
+        .forEach(s => events.push({ type:'service', date:s.createdAt, title:`${s.issueDescription?.slice(0,50)}`, sub:`Technician: ${s.assignedTechnician||'Unassigned'} · ${s.status}`, amount:s.serviceCharge, raw:s }));
+
+      (eR.data.data||[]).filter(e => e.id !== enquiry.id && (e.customerName?.toLowerCase()===enquiry.customerName?.toLowerCase() || e.mobile?.replace(/\s/g,'')===mobile))
+        .forEach(e => events.push({ type:'enquiry', date:e.createdAt, title:`Enquiry — ${e.serviceRequired||e.productName||'General'}`, sub:e.message?.slice(0,60)||'No message', raw:e }));
+
+      (qR.data.data||[]).filter(q => q.customerName?.toLowerCase()===enquiry.customerName?.toLowerCase() || q.customerMobile?.replace(/\s/g,'')===mobile)
+        .forEach(q => events.push({ type:'quotation', date:q.createdAt, title:`Quotation ${q.quotationNumber}`, sub:`Status: ${q.status} · Total: ₹${Number(q.totalAmount||0).toLocaleString('en-IN')}`, raw:q }));
+
+      events.sort((a,b) => new Date(b.date) - new Date(a.date));
+      setTimeline(events);
+      if (events.length > 0) {
+        const firstDate = new Date(events[0].date).toLocaleDateString('en-IN', { day:'2-digit', month:'long', year:'numeric' });
+        setExpandedDate(firstDate);
+      }
+    }).catch(console.error).finally(() => setLoading(false));
+  }, [enquiry]);
+
+  if (!enquiry) return null;
+  const grouped = groupByDate(timeline);
+
+  const STATUS_COLOR = { NEW:'#E6F1FB', CONTACTED:'#FAEEDA', CONVERTED:'#EAF3DE', CLOSED:'#FCEBEB' };
+  const STATUS_TEXT = { NEW:'#0C447C', CONTACTED:'#633806', CONVERTED:'#27500A', CLOSED:'#791F1F' };
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{zIndex:1100}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:'#fff',borderRadius:16,width:'100%',maxWidth:680,maxHeight:'90vh',overflow:'hidden',display:'flex',flexDirection:'column',animation:'scaleIn 0.3s ease'}}>
+        {/* Header */}
+        <div style={{background:'linear-gradient(135deg,#009B00,#007A00)',padding:'20px 24px',flexShrink:0}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+            <div>
+              <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:8}}>
+                <div style={{width:44,height:44,borderRadius:'50%',background:'rgba(255,255,255,.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:700,color:'#7fff7f'}}>
+                  {enquiry.customerName?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}
+                </div>
+                <div>
+                  <div style={{color:'#fff',fontSize:18,fontWeight:700}}>{enquiry.customerName}</div>
+                  <div style={{color:'#7fff7f',fontSize:13}}>Enquiry ID: E-{String(enquiry.id).padStart(3,'0')}</div>
+                </div>
+              </div>
+              <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
+                <span style={{color:'#b8dfd2',fontSize:12}}>📞 {enquiry.mobile}</span>
+                {enquiry.email&&<span style={{color:'#b8dfd2',fontSize:12}}>✉️ {enquiry.email}</span>}
+                {enquiry.address&&<span style={{color:'#b8dfd2',fontSize:12}}>📍 {enquiry.address}</span>}
+              </div>
+            </div>
+            <button onClick={onClose} style={{background:'rgba(255,255,255,.1)',border:'none',color:'#fff',width:32,height:32,borderRadius:'50%',cursor:'pointer',fontSize:16}}>✕</button>
+          </div>
+        </div>
+
+        {/* Details strip */}
+        <div style={{background:'#f8fffe',borderBottom:'1px solid #e8eaed',padding:'12px 24px',display:'flex',gap:20,flexWrap:'wrap',flexShrink:0}}>
+          <div><span style={{fontSize:11,color:'#9aa0a6',fontWeight:600}}>PRODUCT / SERVICE</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{enquiry.serviceRequired||enquiry.productName||'—'}</div></div>
+          <div><span style={{fontSize:11,color:'#9aa0a6',fontWeight:600}}>SOURCE</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{enquiry.source?.replace('_',' ')||'—'}</div></div>
+          <div><span style={{fontSize:11,color:'#9aa0a6',fontWeight:600}}>STATUS</span><div style={{marginTop:2}}><span style={{background:STATUS_COLOR[enquiry.status],color:STATUS_TEXT[enquiry.status],fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:10}}>{enquiry.status}</span></div></div>
+          <div><span style={{fontSize:11,color:'#9aa0a6',fontWeight:600}}>RECEIVED</span><div style={{fontSize:13,fontWeight:600,marginTop:2}}>{formatDate(enquiry.createdAt)}</div></div>
+          <div style={{gridColumn:'1/-1'}}><span style={{fontSize:11,color:'#9aa0a6',fontWeight:600}}>MESSAGE</span><div style={{fontSize:13,marginTop:2,color:'#5f6368'}}>{enquiry.message||'No message added.'}</div></div>
+        </div>
+
+        {/* Timeline */}
+        <div style={{flex:1,overflowY:'auto',padding:'16px 24px'}}>
+          <div style={{fontSize:14,fontWeight:700,marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
+            📅 Customer History <span style={{fontSize:12,color:'#9aa0a6',fontWeight:400}}>({timeline.length} events)</span>
+          </div>
+
+          {loading&&<div style={{textAlign:'center',padding:32,color:'#9aa0a6'}}>Loading history…</div>}
+
+          {!loading&&timeline.length===0&&(
+            <div style={{textAlign:'center',padding:32,color:'#9aa0a6',background:'#f8f9fa',borderRadius:8}}>
+              <div style={{fontSize:28,marginBottom:8}}>📋</div>
+              <div>No other activity history found for this customer yet.</div>
+            </div>
+          )}
+
+          {Object.entries(grouped).map(([date, events]) => (
+            <div key={date} style={{marginBottom:12}}>
+              <div onClick={()=>setExpandedDate(expandedDate===date?null:date)}
+                style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:expandedDate===date?'#e0f9e0':'#f8f9fa',borderRadius:8,cursor:'pointer',border:`1px solid ${expandedDate===date?'#c5e8d8':'#e8eaed'}`,transition:'all .2s',userSelect:'none'}}>
+                <span style={{fontSize:16}}>📅</span>
+                <span style={{fontWeight:700,fontSize:13,color:expandedDate===date?'#009B00':'#202124'}}>{date}</span>
+                <span style={{marginLeft:'auto',fontSize:11,color:'#9aa0a6'}}>{events.length} event{events.length>1?'s':''}</span>
+                <span style={{color:'#9aa0a6',fontSize:14,transition:'transform .2s',transform:expandedDate===date?'rotate(180deg)':'none'}}>▼</span>
+              </div>
+
+              {expandedDate===date&&(
+                <div style={{marginTop:4,paddingLeft:8,display:'flex',flexDirection:'column',gap:6}}>
+                  {events.map((ev,i)=>{
+                    const cfg = TYPE_CONFIG[ev.type]||{icon:'•',color:'#f0f0f0',iconColor:'#333',label:ev.type};
+                    return(
+                      <div key={i} style={{display:'flex',gap:10,padding:'10px 12px',background:cfg.color,borderRadius:8,border:`1px solid rgba(0,0,0,.06)`,animation:'fadeInUp 0.3s ease'}}>
+                        <div style={{width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,.6)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,flexShrink:0}}>{cfg.icon}</div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                            <div>
+                              <span style={{fontSize:10,fontWeight:700,color:cfg.iconColor,textTransform:'uppercase',letterSpacing:.5}}>{cfg.label}</span>
+                              <div style={{fontSize:13,fontWeight:600,marginTop:1}}>{ev.title}</div>
+                              <div style={{fontSize:11,color:'#5f6368',marginTop:2}}>{ev.sub}</div>
+                            </div>
+                            <div style={{textAlign:'right',flexShrink:0,marginLeft:8}}>
+                              {ev.amount&&<div style={{fontWeight:700,color:'#009B00',fontSize:14}}>₹{Number(ev.amount).toLocaleString('en-IN')}</div>}
+                              <div style={{fontSize:10,color:'#9aa0a6',marginTop:2}}>{formatDateTime(ev.date)}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Footer actions */}
+        <div style={{padding:'12px 24px',borderTop:'1px solid #e8eaed',display:'flex',gap:8,flexShrink:0,background:'#fafafa'}}>
+          <a href={`tel:${enquiry.mobile}`} className="btn btn-primary btn-sm"><Phone size={13} style={{verticalAlign:'middle'}} /> Call</a>
+          <a href={`https://wa.me/91${enquiry.mobile?.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" className="btn btn-wa btn-sm"><MessageCircle size={13} style={{verticalAlign:'middle',color:'#25D366'}} /> WhatsApp</a>
+          <div style={{marginLeft:'auto',fontSize:12,color:'#9aa0a6',display:'flex',alignItems:'center'}}>
+            Last updated: {formatDate(enquiry.updatedAt)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export function CustomerDetailModal({ customer, onClose }) {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
@@ -286,6 +432,8 @@ export function CustomerDetailModal({ customer, onClose }) {
   const [search, setSearch]   = useState('');
   const [sendingWa, setSendingWa] = useState(null); // holds the event index currently sending
   const [viewingService, setViewingService] = useState(null);
+  const [viewingLead, setViewingLead] = useState(null);
+  const [viewingEnquiry, setViewingEnquiry] = useState(null);
 
   useEffect(() => {
     if (!customer) return;
@@ -440,7 +588,12 @@ export function CustomerDetailModal({ customer, onClose }) {
               { label: 'Services',    value: (data?.serviceRequests||[]).length,        color: '#fff' },
               { label: 'Leads',       value: (data?.leads||[]).length,                  color: '#fff' },
               { label: 'Enquiries',   value: (data?.enquiries||[]).length,              color: '#fff' },
-              { label: 'Customer since', value: customer.createdAt ? new Date(customer.createdAt).toLocaleDateString('en-IN',{month:'short',year:'numeric'}) : '—', color: 'rgba(255,255,255,.6)' },
+              { label: 'Customer since', value: (() => {
+                  const earliest = allEvents.length > 0
+                    ? allEvents.reduce((min, ev) => new Date(ev.date) < new Date(min) ? ev.date : min, allEvents[0].date)
+                    : customer.createdAt;
+                  return earliest ? new Date(earliest).toLocaleDateString('en-IN',{month:'short',year:'numeric'}) : '—';
+                })(), color: 'rgba(255,255,255,.6)' },
             ].map(s => (
               <div key={s.label} style={{
                 background: 'rgba(255,255,255,.12)', borderRadius: 8, padding: '6px 12px', textAlign: 'center',
@@ -570,6 +723,30 @@ export function CustomerDetailModal({ customer, onClose }) {
                               View
                             </button>
                           )}
+                          {ev.type === 'lead' && (
+                            <button
+                              onClick={() => setViewingLead(ev.raw)}
+                              title="View lead details"
+                              style={{
+                                marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4,
+                                fontSize: 10, fontWeight: 700, color: '#0C447C', background: '#E6F1FB',
+                                border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer',
+                              }}>
+                              View
+                            </button>
+                          )}
+                          {ev.type === 'enquiry' && (
+                            <button
+                              onClick={() => setViewingEnquiry(ev.raw)}
+                              title="View enquiry details"
+                              style={{
+                                marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4,
+                                fontSize: 10, fontWeight: 700, color: '#0C447C', background: '#E6F1FB',
+                                border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer',
+                              }}>
+                              View
+                            </button>
+                          )}
                           {(ev.type === 'service' || ev.type === 'sale') && (
                             <button
                               onClick={() => sendEventPdf(ev, i)}
@@ -613,6 +790,12 @@ export function CustomerDetailModal({ customer, onClose }) {
       </div>
       {viewingService && (
         <ServiceDetailModal service={viewingService} onClose={()=>setViewingService(null)} />
+      )}
+      {viewingLead && (
+        <LeadDetailModal lead={viewingLead} onClose={()=>setViewingLead(null)} />
+      )}
+      {viewingEnquiry && (
+        <EnquiryDetailModal enquiry={viewingEnquiry} onClose={()=>setViewingEnquiry(null)} />
       )}
     </div>
   );

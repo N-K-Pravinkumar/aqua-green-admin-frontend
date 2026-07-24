@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search, Phone, MessageCircle, Wrench, X } from 'lucide-react';
 import { maintenanceAPI, templateAPI, customerAPI } from '../../services/api';
 import { formatDate } from './AdminHelpers';
+import Pagination from './Pagination';
 
 const DAY_OPTIONS = [30, 60, 90, 180, 365];
 
@@ -36,6 +37,8 @@ export default function MaintenancePanel({ onClose }) {
   const [searchedFor, setSearchedFor] = useState(null);
   const [templates, setTemplates] = useState([]);
   const [pickerRow, setPickerRow] = useState(null);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 10;
 
   useEffect(() => {
     maintenanceAPI.getParts().then(r => setKnownParts(r.data.data || [])).catch(() => {});
@@ -51,6 +54,7 @@ export default function MaintenancePanel({ onClose }) {
       const r = await maintenanceAPI.getOverdue(partName.trim(), daysToUse);
       setResults(r.data.data || []);
       setSearchedFor({ partName: partName.trim(), days: daysToUse });
+      setPage(0);
     } catch {
       setResults([]);
     }
@@ -111,11 +115,11 @@ export default function MaintenancePanel({ onClose }) {
               No one's overdue for "{searchedFor?.partName}" past {searchedFor?.days} days.
             </div>
           ) : (
-            <div className="table-wrap">
+            <div className="table-wrap" style={{ maxHeight: 360, overflowY: 'auto' }}>
               <table className="data-table">
                 <thead><tr><th>Customer</th><th>Mobile</th><th>Product</th><th>Last Replaced</th><th>Days</th><th></th></tr></thead>
                 <tbody>
-                  {results.map((row, i) => (
+                  {results.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((row, i) => (
                     <tr key={i}>
                       <td style={{ fontWeight: 600 }}>{row.customerName || '—'}</td>
                       <td><a href={`tel:${row.customerMobile}`} style={{ color: '#009B00', fontWeight: 600 }}>{row.customerMobile}</a></td>
@@ -133,6 +137,15 @@ export default function MaintenancePanel({ onClose }) {
                 </tbody>
               </table>
             </div>
+          )}
+          {results.length > PAGE_SIZE && (
+            <Pagination
+              page={page}
+              totalPages={Math.max(1, Math.ceil(results.length / PAGE_SIZE))}
+              totalElements={results.length}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
+            />
           )}
         </div>
       )}

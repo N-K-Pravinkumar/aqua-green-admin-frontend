@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MessageCircle, Phone } from 'lucide-react';
 import { saleAPI, serviceRequestAPI, enquiryAPI, quotationAPI, customerAPI, saleInvoiceAPI, serviceRequestExtAPI } from '../../services/api';
+import Pagination from './Pagination';
 
 function formatDate(dt) {
   if (!dt) return '—';
@@ -60,13 +61,13 @@ export function ServiceDetailModal({ service, onClose, onEdit }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal modal-lg" onClick={e=>e.stopPropagation()} style={{maxWidth:640}}>
+      <div className="modal modal-lg" onClick={e=>e.stopPropagation()} style={{maxWidth:640, maxHeight:'90vh', display:'flex', flexDirection:'column'}}>
         <div className="modal-header">
           <div className="modal-title">Service Details — {service.ticketNumber || service.serviceCode}</div>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
-        <div style={{display:'flex', flexDirection:'column', gap:14}}>
+        <div style={{display:'flex', flexDirection:'column', gap:14, overflowY:'auto', paddingRight:4}}>
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, fontSize:13}}>
             <div><span style={{color:'#9aa0a6'}}>Customer:</span> <strong>{service.customerName || '—'}</strong></div>
             <div><span style={{color:'#9aa0a6'}}>Mobile:</span> <strong>{service.customerMobile || '—'}</strong></div>
@@ -435,10 +436,13 @@ export function CustomerDetailModal({ customer, onClose }) {
   const [viewingService, setViewingService] = useState(null);
   const [viewingLead, setViewingLead] = useState(null);
   const [viewingEnquiry, setViewingEnquiry] = useState(null);
+  const [timelinePage, setTimelinePage] = useState(0);
+  const [maintPage, setMaintPage] = useState(0);
+  const TIMELINE_PAGE_SIZE = 15;
 
   useEffect(() => {
     if (!customer) return;
-    setLoading(true); setActiveTab('all'); setSearch('');
+    setLoading(true); setActiveTab('all'); setSearch(''); setTimelinePage(0); setMaintPage(0);
     customerAPI.getTimeline(customer.id)
       .then(r => setData(r.data.data))
       .catch(console.error)
@@ -528,6 +532,27 @@ export function CustomerDetailModal({ customer, onClose }) {
     allEvents.sort((a, b) => new Date(b.date) - new Date(a.date));
   }
 
+  // Part-replacement history — parsed straight from this customer's own
+  // service tickets (sparePartsJson), same source the Maintenance search
+  // uses, just scoped to one person: "when did THEY last change X?"
+  const maintenanceRows = [];
+  (data?.serviceRequests || []).forEach(s => {
+    if (!s.sparePartsJson) return;
+    try {
+      const parts = JSON.parse(s.sparePartsJson);
+      (Array.isArray(parts) ? parts : []).forEach(p => {
+        maintenanceRows.push({
+          partName: p.name || 'Unnamed part',
+          qty: p.qty || 1,
+          unitPrice: p.unitPrice ?? p.price ?? 0,
+          date: s.completedAt || s.createdAt,
+          ticketNumber: s.ticketNumber,
+        });
+      });
+    } catch { /* malformed JSON — skip this ticket's parts */ }
+  });
+  maintenanceRows.sort((a, b) => new Date(b.date) - new Date(a.date));
+
   const TYPE_META = {
     lead:      { icon: '💡', bg: '#EEEDFE', accent: '#3C3489', label: 'Lead'      },
     enquiry:   { icon: '📩', bg: '#E6F1FB', accent: '#0C447C', label: 'Enquiry'   },
@@ -544,11 +569,18 @@ export function CustomerDetailModal({ customer, onClose }) {
     { key: 'sale',      label: 'Sales',      count: (data?.sales||[]).length },
     { key: 'quotation', label: 'Quotations', count: (data?.quotations||[]).length },
     { key: 'message',   label: 'Messages',   count: (data?.messages||[]).length },
+    { key: 'maintenance', label: 'Maintenance', count: maintenanceRows.length },
   ];
 
   const filtered = allEvents
     .filter(e => activeTab === 'all' || e.type === activeTab)
     .filter(e => !search || e.title.toLowerCase().includes(search.toLowerCase()) || e.sub?.toLowerCase().includes(search.toLowerCase()));
+
+  // Pair each event with its original index BEFORE slicing, so state like
+  // `sendingWa === i` still points at the right event after pagination.
+  const indexedFiltered = filtered.map((ev, i) => ({ ev, i }));
+  const timelineTotalPages = Math.max(1, Math.ceil(indexedFiltered.length / TIMELINE_PAGE_SIZE));
+  const pagedFiltered = indexedFiltered.slice(timelinePage * TIMELINE_PAGE_SIZE, (timelinePage + 1) * TIMELINE_PAGE_SIZE);
 
   const totalSpend = (data?.sales||[]).reduce((s,x) => s + Number(x.totalAmount||0), 0)
                    + (data?.serviceRequests||[]).filter(x=>x.status==='COMPLETED').reduce((s,x) => s + Number(x.totalBillAmount||0), 0);
@@ -617,7 +649,7 @@ export function CustomerDetailModal({ customer, onClose }) {
         <div style={{ background: '#f8f9fa', borderBottom: '1px solid #e9ecef', padding: '0 16px', flexShrink: 0 }}>
           <div style={{ display: 'flex', gap: 0, overflowX: 'auto' }}>
             {TABS.map(t => (
-              <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
+              <button key={t.key} onClick={() => { setActiveTab(t.key); setTimelinePage(0); setMaintPage(0); }} style={{
                 padding: '10px 14px', border: 'none', background: 'transparent', cursor: 'pointer',
                 fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
                 color: activeTab === t.key ? '#009B00' : '#6c757d',
@@ -640,7 +672,7 @@ export function CustomerDetailModal({ customer, onClose }) {
         {/* ── Search ───────────────────────────────────────────── */}
         <div style={{ padding: '10px 16px', borderBottom: '1px solid #e9ecef', flexShrink: 0 }}>
           <input
-            value={search} onChange={e => setSearch(e.target.value)}
+            value={search} onChange={e => { setSearch(e.target.value); setTimelinePage(0); }}
             placeholder="Search history…"
             style={{ width: '100%', fontSize: 13, padding: '7px 12px', border: '1px solid #e9ecef', borderRadius: 8, outline: 'none', background: '#f8f9fa' }}
           />
@@ -648,6 +680,42 @@ export function CustomerDetailModal({ customer, onClose }) {
 
         {/* ── Timeline ─────────────────────────────────────────── */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+          {activeTab === 'maintenance' ? (
+            maintenanceRows.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 40, color: '#9aa0a6', background: '#f8f9fa', borderRadius: 12 }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>🔧</div>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>No maintenance history yet</div>
+                <div style={{ fontSize: 12 }}>No parts have been logged as replaced for this customer's services.</div>
+              </div>
+            ) : (
+              <>
+                <table className="data-table" style={{ fontSize: 13 }}>
+                  <thead><tr><th>Part</th><th>Qty</th><th>Unit Price</th><th>Ticket</th><th>Date</th></tr></thead>
+                  <tbody>
+                    {maintenanceRows.slice(maintPage * TIMELINE_PAGE_SIZE, (maintPage + 1) * TIMELINE_PAGE_SIZE).map((row, i) => (
+                      <tr key={i}>
+                        <td style={{ fontWeight: 600 }}>{row.partName}</td>
+                        <td>{row.qty}</td>
+                        <td>{row.unitPrice ? `₹${Number(row.unitPrice).toLocaleString('en-IN')}` : '—'}</td>
+                        <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{row.ticketNumber || '—'}</td>
+                        <td>{formatDate(row.date)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {maintenanceRows.length > TIMELINE_PAGE_SIZE && (
+                  <Pagination
+                    page={maintPage}
+                    totalPages={Math.max(1, Math.ceil(maintenanceRows.length / TIMELINE_PAGE_SIZE))}
+                    totalElements={maintenanceRows.length}
+                    pageSize={TIMELINE_PAGE_SIZE}
+                    onPageChange={setMaintPage}
+                  />
+                )}
+              </>
+            )
+          ) : (
+          <>
           {loading && (
             <div style={{ textAlign: 'center', padding: 40, color: '#9aa0a6' }}>
               <div style={{ fontSize: 28, marginBottom: 8 }}>⏳</div>
@@ -670,7 +738,7 @@ export function CustomerDetailModal({ customer, onClose }) {
                 position: 'absolute', left: 19, top: 0, bottom: 0,
                 width: 2, background: '#e9ecef', borderRadius: 2,
               }} />
-              {filtered.map((ev, i) => {
+              {pagedFiltered.map(({ ev, i }) => {
                 const meta = TYPE_META[ev.type] || { icon: '•', bg: '#f0f0f0', accent: '#333', label: ev.type };
                 const isFirst = i === 0;
                 return (
@@ -776,6 +844,17 @@ export function CustomerDetailModal({ customer, onClose }) {
                 );
               })}
             </div>
+          )}
+          {!loading && filtered.length > TIMELINE_PAGE_SIZE && (
+            <Pagination
+              page={timelinePage}
+              totalPages={timelineTotalPages}
+              totalElements={filtered.length}
+              pageSize={TIMELINE_PAGE_SIZE}
+              onPageChange={setTimelinePage}
+            />
+          )}
+          </>
           )}
         </div>
 

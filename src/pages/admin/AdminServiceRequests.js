@@ -350,7 +350,26 @@ export default function AdminServiceRequests() {
   const [saving, setSaving]       = useState(false);
   const [deleteId, setDeleteId]   = useState(null);
   const [billingModal, setBillingModal] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
   const { show, ToastEl } = useToast();
+
+  const handleImport = async () => {
+    if (!importText.trim()) { show('Paste some rows first', 'error'); return; }
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const r = await serviceRequestExtAPI.importLegacyBills(importText);
+      setImportResult(r.data.data);
+      show(r.data.message);
+      load();
+    } catch {
+      show('Import failed', 'error');
+    }
+    setImporting(false);
+  };
 
   const load = () => {
     setLoading(true);
@@ -359,7 +378,7 @@ export default function AdminServiceRequests() {
       setPageInfo({totalPages:d?.totalPages||1,totalElements:d?.totalElements||0});
     }).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(load, [page]);
 
   const openCreate = () => { setForm(EMPTY); setEditId(null); setModal(true); };
   const openEdit   = sr  => { setForm({ customerName:sr.customerName||'', customerMobile:sr.customerMobile||'', customerAddress:sr.customerAddress||'', productName:sr.productName||'', productModel:sr.productModel||'', issueDescription:sr.issueDescription||'', assignedTechnician:sr.assignedTechnician||'', serviceCharge:sr.serviceCharge||'', status:sr.status||'PENDING', priority:sr.priority||'MEDIUM', technicianNotes:sr.technicianNotes||'' }); setEditId(sr.id); setModal(true); };
@@ -412,7 +431,10 @@ export default function AdminServiceRequests() {
             <div style={{ fontSize:20, fontWeight:800, display:'flex', alignItems:'center', gap:8 }}><Wrench size={20} color="#009B00"/>Service Requests</div>
             <div style={{ fontSize:13, color:'#6b7280' }}>{items.length} total · {counts.PENDING||0} pending · {counts.COMPLETED||0} completed</div>
           </div>
-          <button className="btn btn-primary" onClick={openCreate} style={{ display:'flex', alignItems:'center', gap:7 }}><Plus size={15}/>New Ticket</button>
+          <div className="flex-gap">
+            <button className="btn btn-ghost" onClick={()=>setImportOpen(true)} style={{ display:'flex', alignItems:'center', gap:7 }}><Download size={15}/>Import Legacy Bills</button>
+            <button className="btn btn-primary" onClick={openCreate} style={{ display:'flex', alignItems:'center', gap:7 }}><Plus size={15}/>New Ticket</button>
+          </div>
         </div>
 
         {/* Status tabs */}
@@ -565,6 +587,51 @@ export default function AdminServiceRequests() {
         <ConfirmModal isOpen={!!deleteId} title="Delete Ticket" message="This will permanently delete this service request." danger
           onConfirm={async()=>{ await serviceRequestAPI.delete(deleteId); setDeleteId(null); load(); show('Deleted'); }}
           onCancel={()=>setDeleteId(null)} />
+
+        {/* Import Legacy Bills Modal */}
+        {importOpen && (
+          <div className="modal-overlay" onClick={()=>setImportOpen(false)}>
+            <div className="modal modal-lg" onClick={e=>e.stopPropagation()} style={{maxWidth:700}}>
+              <div className="modal-header">
+                <div className="modal-title">Import Legacy Bills</div>
+                <button className="modal-close" onClick={()=>setImportOpen(false)}>×</button>
+              </div>
+              <div style={{padding:'0 4px'}}>
+                <p style={{fontSize:13,color:'#6b7280',marginBottom:12}}>
+                  Paste rows straight from your spreadsheet — one bill per line, columns tab-separated:
+                  <br /><code style={{fontSize:11,background:'#f3f4f6',padding:'2px 6px',borderRadius:4}}>
+                    Name [tab] Address [tab] Mobile [tab] Date (DD-MM-YY) [tab] ... [tab] Total [tab] Item / Price [tab] Item / Price ...
+                  </code>
+                </p>
+                <textarea
+                  className="form-textarea"
+                  style={{minHeight:180,fontFamily:'monospace',fontSize:12}}
+                  value={importText}
+                  onChange={e=>setImportText(e.target.value)}
+                  placeholder={"Naresh\tOndipudur,cbe\t9344960687\t12-10-20\t\t3000\tGet Volve / 550\tCarbon Set / 1500\tOut Filter / 200"}
+                />
+                {importResult && (
+                  <div style={{marginTop:12,padding:12,borderRadius:8,background:importResult.skipped>0?'#fff7ed':'#e0f9e0'}}>
+                    <div style={{fontWeight:700,fontSize:13}}>
+                      ✓ {importResult.created} imported{importResult.skipped>0?`, ⚠ ${importResult.skipped} skipped`:''}
+                    </div>
+                    {importResult.errors?.length>0 && (
+                      <div style={{marginTop:8,fontSize:11,color:'#92400e',maxHeight:120,overflowY:'auto'}}>
+                        {importResult.errors.map((e,i)=><div key={i}>• {e}</div>)}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-ghost" onClick={()=>{setImportOpen(false);setImportText('');setImportResult(null);}}>Close</button>
+                <button className="btn btn-primary" onClick={handleImport} disabled={importing}>
+                  {importing ? <><span className="spinner"></span> Importing…</> : 'Import Bills'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </PermissionGate>
   );

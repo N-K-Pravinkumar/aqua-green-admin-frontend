@@ -17,7 +17,9 @@ export default function AdminCustomers() {
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [search, setSearch] = useState('');
+  const [activeQuery, setActiveQuery] = useState(''); // the query actually being searched for (post-debounce)
   const [suggestions, setSuggestions] = useState([]);
+  const [singleResult, setSingleResult] = useState(null); // set when a suggestion is clicked — shows just that one customer
   const [page, setPage] = useState(0);
   const [pageInfo, setPageInfo] = useState({ totalPages:1, totalElements:0 });
   const PAGE_SIZE = 20;
@@ -27,31 +29,57 @@ export default function AdminCustomers() {
 
   useEffect(()=>{ document.getElementById('admin-page-title')&&(document.getElementById('admin-page-title').textContent='Customers'); },[]);
 
+  const isSearching = activeQuery.trim().length >= 2;
+
+  // Single load function driving both normal browsing AND search — both are
+  // properly paginated at PAGE_SIZE through the exact same Pagination control,
+  // instead of search dumping every match onto one unpaginated page.
   const load = () => {
+    if (singleResult) return; // showing exactly one clicked customer — nothing to load
     setLoading(true);
-    customerAPI.getAll(page, PAGE_SIZE).then(r=>{
+    const req = isSearching
+      ? customerAPI.search(activeQuery.trim(), page, PAGE_SIZE)
+      : customerAPI.getAll(page, PAGE_SIZE);
+    req.then(r=>{
       const d=r.data.data; setCustomers(d?.content||d||[]);
       setPageInfo({totalPages:d?.totalPages||1,totalElements:d?.totalElements||0});
     }).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));
   };
-  useEffect(load,[page]);
+  useEffect(load,[page,activeQuery,singleResult]);
 
   const handleSearchChange = v => {
     setSearch(v);
+    setSingleResult(null);
     clearTimeout(debounce.current);
-    if (v.length < 2) { setSuggestions([]); return; }
+    if (v.trim().length < 2) {
+      setSuggestions([]);
+      if (activeQuery) { setActiveQuery(''); setPage(0); } // back to normal browsing
+      return;
+    }
     debounce.current = setTimeout(async () => {
+      // Suggestions dropdown: quick preview of the first few matches as you type
       try {
-        const r = await customerAPI.search(v);
-        setSuggestions((r.data.data||[]).slice(0,6).map(c=>({ label:c.name, sub:`${c.mobile} · ${c.address||c.city||''}`, value:c })));
-      } catch {}
+        const r = await customerAPI.search(v.trim(), 0, 6);
+        const content = r.data.data?.content || [];
+        setSuggestions(content.map(c=>({ label:c.name, sub:`${c.mobile} · ${c.address||c.city||''}`, value:c })));
+      } catch { setSuggestions([]); }
+      // Commit the search — this drives the actual (paginated) table
+      setPage(0);
+      setActiveQuery(v.trim());
     }, 300);
   };
-  const filtered = customers.filter(c => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return c.name?.toLowerCase().includes(q) || c.mobile?.includes(search) || c.address?.toLowerCase().includes(q) || c.city?.toLowerCase().includes(q);
-  });
+
+  const selectSuggestion = (s) => {
+    setSearch(s.label);
+    setSuggestions([]);
+    setActiveQuery('');
+    setSingleResult(s.value); // show exactly this customer, first "page", nothing else
+  };
+
+  const clearSearch = () => { setSearch(''); setActiveQuery(''); setSuggestions([]); setSingleResult(null); setPage(0); };
+
+  const filtered = singleResult ? [singleResult] : customers;
+  const effectivePageInfo = singleResult ? { totalPages:1, totalElements:1 } : pageInfo;
 
   const openEdit = c => { setForm({name:c.name,mobile:c.mobile,email:c.email||'',address:c.address||'',city:c.city||'',gstNumber:c.gstNumber||'',customerType:c.customerType||'RESIDENTIAL'}); setEditItem(c); setModalOpen(true); };
   const openCreate = () => { setForm(EMPTY); setEditItem(null); setModalOpen(true); };
@@ -70,9 +98,19 @@ export default function AdminCustomers() {
     <div>
       {ToastEl}
       <div className="flex-between mb-16">
-        <div><div style={{fontSize:18,fontWeight:700}}>Customers</div><div className="text-muted text-sm">{customers.length} active customers</div></div>
+        <div>
+          <div style={{fontSize:18,fontWeight:700}}>Customers</div>
+          <div className="text-muted text-sm">
+            {singleResult
+              ? `Showing 1 customer`
+              : isSearching
+                ? `${pageInfo.totalElements} result${pageInfo.totalElements!==1?'s':''} for "${activeQuery}"`
+                : `${pageInfo.totalElements || customers.length} total customers`}
+            {(isSearching || singleResult) && <button onClick={clearSearch} style={{marginLeft:8,background:'none',border:'none',color:'#009B00',fontWeight:600,cursor:'pointer',fontSize:12,padding:0}}>Clear</button>}
+          </div>
+        </div>
         <div className="flex-gap">
-          <SearchBox value={search} onChange={handleSearchChange} placeholder="Search customers…" suggestions={suggestions} onSelect={s=>{setSearch(s.label);setSuggestions([]);}} width="240px" />
+          <SearchBox value={search} onChange={handleSearchChange} placeholder="Search customers…" suggestions={suggestions} onSelect={selectSuggestion} width="240px" />
           <button className="btn btn-primary" onClick={openCreate}>+ Add Customer</button>
         </div>
       </div>
@@ -83,7 +121,7 @@ export default function AdminCustomers() {
             <table className="data-table">
               <thead><tr><th>#</th><th>Name</th><th>Mobile</th><th>Email</th><th>City</th><th>Type</th><th>GST</th><th>Since</th><th>Actions</th></tr></thead>
               <tbody>
-                {filtered.length===0&&<tr><td colSpan={9} style={{padding:32,textAlign:'center',color:'#9aa0a6'}}>No customers found</td></tr>}
+                {filtered.length===0&&<tr><td colSpan={9} style={{padding:32,textAlign:'center',color:'#9aa0a6'}}>{isSearching ? `No customers match "${activeQuery}"` : 'No customers found'}</td></tr>}
                 {filtered.map(c=>(
                   <tr key={c.id}>
                     <td style={{color:'#9aa0a6',fontSize:11}}>C-{String(c.id).padStart(3,'0')}</td>
@@ -107,7 +145,9 @@ export default function AdminCustomers() {
                 ))}
               </tbody>
             </table>
-            <Pagination page={page} totalPages={pageInfo.totalPages} totalElements={pageInfo.totalElements} pageSize={PAGE_SIZE} onPageChange={p=>{setPage(p);}} />
+            {!singleResult && (
+              <Pagination page={page} totalPages={effectivePageInfo.totalPages} totalElements={effectivePageInfo.totalElements} pageSize={PAGE_SIZE} onPageChange={p=>{setPage(p);}} />
+            )}
           </div>
         )}
       </div>

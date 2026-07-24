@@ -75,7 +75,7 @@ export const serviceAPI = {
 export const customerAPI = {
   // Returns Page<Customer> — use .data.data.content for the array
   getAll: (page = 0, size = 20) => api.get('/customers', { params: { page, size } }),
-  search: q => api.get(`/customers/search?q=${q}`),
+  search: (q, page=0, size=20) => api.get('/customers/search', { params: { q, page, size } }),
   lookupByMobile: mobile => api.get(`/customers/lookup?mobile=${mobile}`),
   getById: id => api.get(`/customers/${id}`),
   getTimeline: id => api.get(`/customers/${id}/timeline`),
@@ -317,6 +317,8 @@ export const serviceRequestExtAPI = {
   completeBilling: (id, data)  => api.post(`/service-requests/${id}/complete-billing`, data),
   downloadInvoice: (id) => api.get(`/service-requests/${id}/invoice/pdf`, { responseType: 'blob' }),
   updateStatus:    (id, status) => api.patch(`/service-requests/${id}/status?status=${status}`),
+  // Paste tab-separated rows copied straight from a spreadsheet — one historical bill per line.
+  importLegacyBills: (text) => api.post('/service-requests/import/legacy-bills', { text }),
 };
 
 export const saleInvoiceAPI = {

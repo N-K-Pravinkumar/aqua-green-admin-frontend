@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Eye, MessageCircle, Pencil, Phone, Trash2 } from 'lucide-react';
 import { customerAPI, seedCleanupAPI } from '../../services/api';
+import MaintenancePanel from '../../components/admin/MaintenancePanel';
 import Pagination from '../../components/admin/Pagination';
 import SearchBox from '../../components/admin/SearchBox';
 import { ConfirmModal, formatDate, useToast } from '../../components/admin/AdminHelpers';
@@ -25,6 +26,7 @@ export default function AdminCustomers() {
   const PAGE_SIZE = 20;
   const debounce = useRef(null);
   const [viewCustomer, setViewCustomer] = useState(null);
+  const [showMaintenance, setShowMaintenance] = useState(false);
   const { show, ToastEl } = useToast();
 
   useEffect(()=>{ document.getElementById('admin-page-title')&&(document.getElementById('admin-page-title').textContent='Customers'); },[]);
@@ -139,9 +141,12 @@ export default function AdminCustomers() {
               load();
             } catch { show('Merge failed', 'error'); }
           }}>Merge Duplicates</button>
+          <button className={`btn ${showMaintenance ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setShowMaintenance(s => !s)}>🔧 Maintenance</button>
           <button className="btn btn-primary" onClick={openCreate}>+ Add Customer</button>
         </div>
       </div>
+
+      {showMaintenance && <MaintenancePanel onClose={() => setShowMaintenance(false)} />}
 
       <div className="section-card">
         {loading ? <div style={{padding:40,textAlign:'center',color:'#9aa0a6'}}>Loading…</div> : (

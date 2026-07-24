@@ -353,6 +353,7 @@ export default function AdminServiceRequests() {
   const [deleteId, setDeleteId]   = useState(null);
   const [billingModal, setBillingModal] = useState(null);
   const [counts, setCounts] = useState({});
+  const [totalStats, setTotalStats] = useState({ revenue: 0, count: 0 });
   const [viewService, setViewService] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
@@ -388,6 +389,12 @@ export default function AdminServiceRequests() {
     }).catch(()=>show('Load failed','error')).finally(()=>setLoading(false));
   };
   useEffect(load, [page, statusFilter]);
+
+  useEffect(() => {
+    serviceRequestAPI.getAnalytics('2000-01-01T00:00:00', new Date().toISOString().slice(0, 19))
+      .then(r => setTotalStats(r.data.data || { revenue: 0, count: 0 }))
+      .catch(() => {});
+  }, []);
   const changeStatus = (s) => { setStatus(s); setPage(0); };
 
   const openCreate = () => { setForm(EMPTY); setEditId(null); setModal(true); };
@@ -441,6 +448,11 @@ export default function AdminServiceRequests() {
             <button className="btn btn-ghost" onClick={()=>setImportOpen(true)} style={{ display:'flex', alignItems:'center', gap:7 }}><Download size={15}/>Import Legacy Bills</button>
             <button className="btn btn-primary" onClick={openCreate} style={{ display:'flex', alignItems:'center', gap:7 }}><Plus size={15}/>New Ticket</button>
           </div>
+        </div>
+
+        <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', marginBottom: 16 }}>
+          <div className="stat-card"><div className="stat-label">Total Revenue (All Time)</div><div className="stat-value stat-green">₹{Number(totalStats.revenue || 0).toLocaleString('en-IN')}</div></div>
+          <div className="stat-card"><div className="stat-label">Total Records</div><div className="stat-value stat-blue">{totalStats.count || 0}</div></div>
         </div>
 
         <RevenueAnalytics getAnalytics={serviceRequestAPI.getAnalytics} getRevenueChart={serviceRequestAPI.getRevenueChart} label="Service Requests" />

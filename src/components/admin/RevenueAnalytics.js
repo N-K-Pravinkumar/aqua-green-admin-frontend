@@ -43,6 +43,7 @@ function computeRange(key, customFrom, customTo) {
  * Requests — just point `getAnalytics` at the matching API helper.
  */
 export default function RevenueAnalytics({ getAnalytics, getRevenueChart, label = 'Revenue' }) {
+  const [open, setOpen] = useState(false);
   const [rangeKey, setRangeKey] = useState('month');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
@@ -62,23 +63,31 @@ export default function RevenueAnalytics({ getAnalytics, getRevenueChart, label 
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [rangeKey, customFrom, customTo]);
+  useEffect(() => { if (open) load(); }, [rangeKey, customFrom, customTo, open]);
 
   useEffect(() => {
-    if (!getRevenueChart) return;
+    if (!open || !getRevenueChart) return;
     setChartLoading(true);
     const count = chartGranularity === 'week' ? 8 : 9;
     getRevenueChart(chartGranularity, count)
       .then(r => setChartData(r.data.data || []))
       .catch(() => setChartData([]))
       .finally(() => setChartLoading(false));
-  }, [chartGranularity, getRevenueChart]);
+  }, [chartGranularity, getRevenueChart, open]);
 
   return (
     <div className="section-card" style={{ padding: 18, marginBottom: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ fontSize: 14, fontWeight: 700 }}>{label} Analytics</div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, cursor: 'pointer' }}
+        onClick={() => setOpen(o => !o)}
+      >
+        <div style={{ fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ display: 'inline-block', transition: 'transform .2s', transform: open ? 'rotate(90deg)' : 'none' }}>▶</span>
+          {label} Analytics
+        </div>
+        {!open && <span style={{ fontSize: 11, color: '#9aa0a6' }}>Click to open</span>}
+        {open && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
           {RANGE_OPTIONS.map(o => (
             <button
               key={o.key}
@@ -90,8 +99,10 @@ export default function RevenueAnalytics({ getAnalytics, getRevenueChart, label 
             </button>
           ))}
         </div>
+        )}
       </div>
 
+      {open && (<>
       {rangeKey === 'custom' && (
         <div style={{ display: 'flex', gap: 10, marginTop: 12, alignItems: 'center' }}>
           <input type="date" className="form-input" style={{ maxWidth: 160 }} value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
@@ -141,6 +152,7 @@ export default function RevenueAnalytics({ getAnalytics, getRevenueChart, label 
           </div>
         </div>
       )}
+      </>)}
     </div>
   );
 }

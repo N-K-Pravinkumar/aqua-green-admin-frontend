@@ -29,7 +29,6 @@ const NAV_GROUPS = [
       { to: '/admin/billing',           label: 'Billing',           icon: Receipt,      perm: 'SALES' },
       { to: '/admin/sales',             label: 'Sales',             icon: CreditCard, perm: 'SALES' },
       { to: '/admin/service-requests', label: 'Service Requests', icon: ClipboardList, perm: 'SERVICE_REQUESTS', badge: 'pendingServices' },
-      { to: '/admin/maintenance', label: 'Maintenance', icon: Wrench, perm: 'SERVICE_REQUESTS' },
     ],
   },
   {

@@ -480,6 +480,7 @@ export default function AdminServiceRequests() {
                   <tr key={sr.id}>
                     <td>
                       <div style={{ fontFamily:'monospace', fontSize:11, fontWeight:700, color:'#009B00' }}>{sr.ticketNumber||'—'}</div>
+                      {sr.serviceCode && <div style={{ fontSize:10, color:'#9aa0a6' }}>{sr.serviceCode}</div>}
                       {sr.invoiceNumber && <div style={{ fontSize:10, color:'#9ca3af' }}>INV: {sr.invoiceNumber}</div>}
                     </td>
                     <td>

@@ -26,7 +26,26 @@ export function AdminSales() {
   const [products, setProducts] = useState([]);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
   const { show, ToastEl } = useToast();
+
+  const handleImport = async () => {
+    if (!importText.trim()) { show('Paste some rows first', 'error'); return; }
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const r = await saleAPI.importLegacySales(importText);
+      setImportResult(r.data.data);
+      show(r.data.message);
+      load();
+    } catch {
+      show('Import failed', 'error');
+    }
+    setImporting(false);
+  };
 
   useEffect(()=>{document.getElementById('admin-page-title')&&(document.getElementById('admin-page-title').textContent='Sales');},[]);
 
@@ -64,7 +83,10 @@ export function AdminSales() {
       {ToastEl}
       <div className="flex-between mb-16">
         <div><div style={{fontSize:18,fontWeight:700}}>Sales</div></div>
-        <button className="btn btn-primary" onClick={()=>{setForm(EMPTY_SALE);setEditItem(null);setModalOpen(true);}}>+ Add Sale</button>
+        <div className="flex-gap">
+          <button className="btn btn-ghost" onClick={()=>setImportOpen(true)}>Import Legacy Sales</button>
+          <button className="btn btn-primary" onClick={()=>{setForm(EMPTY_SALE);setEditItem(null);setModalOpen(true);}}>+ Add Sale</button>
+        </div>
       </div>
       <div className="stats-grid" style={{gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',marginBottom:16}}>
         <div className="stat-card"><div className="stat-label">Total Revenue</div><div className="stat-value stat-green">{formatCurrency(stats.totalRevenue)}</div></div>
@@ -79,7 +101,7 @@ export function AdminSales() {
               <tbody>
                 {sales.map(s=>(
                   <tr key={s.id}>
-                    <td style={{fontWeight:700,color:'#009B00',fontSize:12}}>{s.invoiceNumber}</td>
+                    <td style={{fontWeight:700,color:'#009B00',fontSize:12}}>{s.invoiceNumber}{s.saleCode && <div style={{fontWeight:400,color:'#9aa0a6',fontSize:10}}>{s.saleCode}</div>}</td>
                     <td style={{fontWeight:600}}>{s.customerName}</td>
                     <td style={{fontSize:12,color:'#5f6368'}}>{s.productName}</td>
                     <td style={{textAlign:'center'}}>{s.quantity}</td>
@@ -125,6 +147,51 @@ export function AdminSales() {
         </div>
       )}
       <ConfirmModal isOpen={!!deleteId} title="Delete Sale" message="Delete this sale record?" danger onConfirm={async()=>{await saleAPI.delete(deleteId);setDeleteId(null);load();show('Deleted');}} onCancel={()=>setDeleteId(null)} />
+
+      {importOpen && (
+        <div className="modal-overlay" onClick={()=>setImportOpen(false)}>
+          <div className="modal modal-lg" onClick={e=>e.stopPropagation()} style={{maxWidth:700}}>
+            <div className="modal-header">
+              <div className="modal-title">Import Legacy Sales</div>
+              <button className="modal-close" onClick={()=>setImportOpen(false)}>×</button>
+            </div>
+            <div style={{padding:'0 4px'}}>
+              <p style={{fontSize:13,color:'#6b7280',marginBottom:12}}>
+                Paste rows tab-separated, one sale per line:
+                <br /><code style={{fontSize:11,background:'#f3f4f6',padding:'2px 6px',borderRadius:4}}>
+                  Name [tab] Address [tab] Phone1/Phone2 [tab] Product [tab] Date (DD-MM-YYYY) [tab] Amount
+                </code>
+                <br />Multiple phone numbers for the same customer go in one cell separated by "/" — they'll all be linked to that customer without creating duplicates.
+              </p>
+              <textarea
+                className="form-textarea"
+                style={{minHeight:180,fontFamily:'monospace',fontSize:12}}
+                value={importText}
+                onChange={e=>setImportText(e.target.value)}
+                placeholder={"BALAJI R\tN.K.PALAYAM(po), CBE-33\t9543168500/9489800000\tDOLPHIN UV\t02-03-2012\t6700"}
+              />
+              {importResult && (
+                <div style={{marginTop:12,padding:12,borderRadius:8,background:importResult.skipped>0?'#fff7ed':'#e0f9e0'}}>
+                  <div style={{fontWeight:700,fontSize:13}}>
+                    ✓ {importResult.created} imported, {importResult.phonesLinked} extra phone(s) linked{importResult.skipped>0?`, ⚠ ${importResult.skipped} skipped`:''}
+                  </div>
+                  {importResult.errors?.length>0 && (
+                    <div style={{marginTop:8,fontSize:11,color:'#92400e',maxHeight:120,overflowY:'auto'}}>
+                      {importResult.errors.map((e,i)=><div key={i}>• {e}</div>)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={()=>{setImportOpen(false);setImportText('');setImportResult(null);}}>Close</button>
+              <button className="btn btn-primary" onClick={handleImport} disabled={importing}>
+                {importing ? <><span className="spinner"></span> Importing…</> : 'Import Sales'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

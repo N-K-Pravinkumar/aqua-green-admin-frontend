@@ -82,6 +82,13 @@ export const customerAPI = {
   create: data => api.post('/customers', data),
   update: (id, data) => api.put(`/customers/${id}`, data),
   delete: id => api.delete(`/customers/${id}`),
+  // One-time cleanup: merges customers that share the same mobile number (safe to call more than once)
+  mergeDuplicates: () => api.post('/customers/merge-duplicates'),
+  // One-time backfill: assigns AGA###/SALE###/SERV### codes to everything missing one
+  assignCodes: () => api.post('/customers/assign-codes'),
+  getPhones: id => api.get(`/customers/${id}/phones`),
+  addPhone: (id, phone, label) => api.post(`/customers/${id}/phones`, { phone, label }),
+  deletePhone: phoneId => api.delete(`/customers/phones/${phoneId}`),
 };
 
 export const leadAPI = {
@@ -115,6 +122,8 @@ export const saleAPI = {
   create: data => api.post('/sales', data),
   update: (id, data) => api.put(`/sales/${id}`, data),
   delete: id => api.delete(`/sales/${id}`),
+  // Paste tab-separated rows: Name / Address / Phone1/Phone2 / Product / Date / Amount
+  importLegacySales: (text) => api.post('/sales/import/legacy-sales', { text }),
 };
 
 export const serviceRequestAPI = {

@@ -111,6 +111,21 @@ export default function AdminCustomers() {
         </div>
         <div className="flex-gap">
           <SearchBox value={search} onChange={handleSearchChange} placeholder="Search customers…" suggestions={suggestions} onSelect={selectSuggestion} width="240px" />
+          <button className="btn btn-ghost" onClick={async()=>{
+            try {
+              const r = await customerAPI.assignCodes();
+              show(r.data.message);
+              load();
+            } catch { show('Failed', 'error'); }
+          }}>Assign Codes</button>
+          <button className="btn btn-ghost" onClick={async()=>{
+            if (!window.confirm('This will merge any customers sharing the same mobile number into one record. Safe to run — it only combines duplicates, nothing is lost. Continue?')) return;
+            try {
+              const r = await customerAPI.mergeDuplicates();
+              show(r.data.message);
+              load();
+            } catch { show('Merge failed', 'error'); }
+          }}>Merge Duplicates</button>
           <button className="btn btn-primary" onClick={openCreate}>+ Add Customer</button>
         </div>
       </div>
@@ -124,7 +139,7 @@ export default function AdminCustomers() {
                 {filtered.length===0&&<tr><td colSpan={9} style={{padding:32,textAlign:'center',color:'#9aa0a6'}}>{isSearching ? `No customers match "${activeQuery}"` : 'No customers found'}</td></tr>}
                 {filtered.map(c=>(
                   <tr key={c.id}>
-                    <td style={{color:'#9aa0a6',fontSize:11}}>C-{String(c.id).padStart(3,'0')}</td>
+                    <td style={{color:'#9aa0a6',fontSize:11,fontWeight:600}}>{c.customerCode || `C-${String(c.id).padStart(3,'0')}`}</td>
                     <td style={{fontWeight:600}}>{c.name}</td>
                     <td><a href={`tel:${c.mobile}`} style={{color:'#009B00',fontWeight:600}}>{c.mobile}</a></td>
                     <td style={{fontSize:12,color:'#5f6368'}}>{c.email||'—'}</td>

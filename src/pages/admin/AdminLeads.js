@@ -48,6 +48,14 @@ export default function AdminLeads() {
   useEffect(() => { load(0, filter); setPage(0); }, [filter]);
   useEffect(() => { load(page, filter); }, [page]);
 
+  // Deep-link support: /admin/leads?edit=<id> (e.g. from a customer's History
+  // timeline "Edit" action) opens straight into the edit modal for that lead.
+  useEffect(() => {
+    const editId = new URLSearchParams(window.location.search).get('edit');
+    if (!editId) return;
+    leadAPI.getById(editId).then(r => { if (r.data.data) openEdit(r.data.data); }).catch(()=>{});
+  }, []);
+
   const handleSearchChange = v => {
     setSearch(v);
     clearTimeout(debounce.current);

@@ -50,6 +50,20 @@ export function AdminSales() {
 
   useEffect(()=>{document.getElementById('admin-page-title')&&(document.getElementById('admin-page-title').textContent='Sales');},[]);
 
+  // Deep-link support: /admin/sales?edit=<id> (e.g. from a customer's History
+  // timeline "Edit" action) opens straight into the edit modal for that sale.
+  useEffect(() => {
+    const editId = new URLSearchParams(window.location.search).get('edit');
+    if (!editId) return;
+    saleAPI.getById(editId).then(r => {
+      const s = r.data.data;
+      if (!s) return;
+      setForm({customerName:s.customerName,productName:s.productName,quantity:s.quantity,unitPrice:s.unitPrice,totalAmount:s.totalAmount,salesPerson:s.salesPerson,invoiceNumber:s.invoiceNumber,paymentStatus:s.paymentStatus,paymentMethod:s.paymentMethod||'UPI'});
+      setEditItem(s);
+      setModalOpen(true);
+    }).catch(()=>{});
+  }, []);
+
   const load = ()=>{
     setLoading(true);
     Promise.all([saleAPI.getAll(page,PAGE_SIZE),saleAPI.getStats(),productAPI.getAll()]).then(([r,sr,pr])=>{

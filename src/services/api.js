@@ -117,6 +117,8 @@ export const enquiryAPI = {
   getAll: (status, page = 0, size = 20) =>
     api.get('/enquiries', { params: { ...(status ? { status } : {}), page, size } }),
   getCounts: () => api.get('/enquiries/counts'),
+  getById: id => api.get(`/enquiries/${id}`),
+  update: (id, data) => api.put(`/enquiries/${id}`, data),
   updateStatus: (id, status) => api.patch(`/enquiries/${id}/status?status=${status}`),
   delete: id => api.delete(`/enquiries/${id}`),
 };
@@ -278,6 +280,8 @@ export const historyAPI = {
   getByCustomer: (id) => api.get(`/history/customer/${id}`),
   getByEntity: (type, id) => api.get(`/history/entity/${type}/${id}`),
   log: (data) => api.post('/history', data),
+  update: (id, data) => api.put(`/history/${id}`, data),
+  delete: id => api.delete(`/history/${id}`),
 };
 
 export const paymentAPI = {

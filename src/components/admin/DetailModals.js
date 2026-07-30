@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MessageCircle, Phone } from 'lucide-react';
-import { saleAPI, serviceRequestAPI, enquiryAPI, quotationAPI, customerAPI, saleInvoiceAPI, serviceRequestExtAPI } from '../../services/api';
+import { saleAPI, serviceRequestAPI, enquiryAPI, quotationAPI, customerAPI, saleInvoiceAPI, serviceRequestExtAPI, leadAPI, historyAPI } from '../../services/api';
 import Pagination from './Pagination';
 
 function formatDate(dt) {
@@ -528,6 +528,34 @@ export function CustomerDetailModal({ customer, onClose }) {
     }
   };
 
+  // Edit — jump to the admin page that owns this record type, deep-linked
+  // straight into its edit form (?edit=<id>, handled on each of those pages).
+  const EDIT_PATH = {
+    lead: '/admin/leads', service: '/admin/service-requests', sale: '/admin/sales',
+  };
+  const editEvent = (ev) => {
+    const path = EDIT_PATH[ev.type];
+    if (!path) return;
+    window.location.href = `${path}?edit=${ev.raw.id}`;
+  };
+
+  // Remove a history entry outright — every type here already has a working
+  // delete endpoint; messages/notes use the history log's delete.
+  const deleteEvent = async (ev) => {
+    if (!window.confirm(`Delete this ${TYPE_META[ev.type]?.label || ev.type} entry? This can't be undone.`)) return;
+    try {
+      if (ev.type === 'lead') await leadAPI.delete(ev.raw.id);
+      else if (ev.type === 'enquiry') await enquiryAPI.delete(ev.raw.id);
+      else if (ev.type === 'service') await serviceRequestAPI.delete(ev.raw.id);
+      else if (ev.type === 'sale') await saleAPI.delete(ev.raw.id);
+      else if (ev.type === 'quotation') await quotationAPI.delete(ev.raw.id);
+      else if (ev.type === 'message') await historyAPI.delete(ev.raw.id);
+      loadTimeline();
+    } catch {
+      alert('Could not delete this entry. Try again.');
+    }
+  };
+
   // Build unified event list
   const allEvents = [];
   if (data) {
@@ -592,6 +620,7 @@ export function CustomerDetailModal({ customer, onClose }) {
           unitPrice: p.unitPrice ?? p.price ?? 0,
           date: s.completedAt || s.createdAt,
           ticketNumber: s.ticketNumber,
+          serviceId: s.id,
         });
       });
     } catch { /* malformed JSON — skip this ticket's parts */ }
@@ -755,7 +784,7 @@ export function CustomerDetailModal({ customer, onClose }) {
             ) : (
               <>
                 <table className="data-table" style={{ fontSize: 13 }}>
-                  <thead><tr><th>Part</th><th>Qty</th><th>Unit Price</th><th>Ticket</th><th>Date</th></tr></thead>
+                  <thead><tr><th>Part</th><th>Qty</th><th>Unit Price</th><th>Ticket</th><th>Date</th><th></th></tr></thead>
                   <tbody>
                     {maintenanceRows.slice(maintPage * TIMELINE_PAGE_SIZE, (maintPage + 1) * TIMELINE_PAGE_SIZE).map((row, i) => (
                       <tr key={i}>
@@ -764,6 +793,16 @@ export function CustomerDetailModal({ customer, onClose }) {
                         <td>{row.unitPrice ? `₹${Number(row.unitPrice).toLocaleString('en-IN')}` : '—'}</td>
                         <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{row.ticketNumber || '—'}</td>
                         <td>{formatDate(row.date)}</td>
+                        <td>
+                          {row.serviceId && (
+                            <button
+                              onClick={() => { window.location.href = `/admin/service-requests?edit=${row.serviceId}`; }}
+                              title="Edit the service ticket this part belongs to"
+                              style={{ fontSize: 10, fontWeight: 700, color: '#009B00', background: '#e0f9e0', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer' }}>
+                              Edit
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -902,6 +941,28 @@ export function CustomerDetailModal({ customer, onClose }) {
                               {sendingWa === i ? 'Preparing…' : 'Send PDF'}
                             </button>
                           )}
+                          {EDIT_PATH[ev.type] && (
+                            <button
+                              onClick={() => editEvent(ev)}
+                              title={`Edit this ${meta.label.toLowerCase()}`}
+                              style={{
+                                marginTop: 6, marginLeft: 4, display: 'inline-flex', alignItems: 'center', gap: 4,
+                                fontSize: 10, fontWeight: 700, color: '#854F0B', background: '#fff8e7',
+                                border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer',
+                              }}>
+                              Edit
+                            </button>
+                          )}
+                          <button
+                            onClick={() => deleteEvent(ev)}
+                            title={`Delete this ${meta.label.toLowerCase()} entry`}
+                            style={{
+                              marginTop: 6, marginLeft: 4, display: 'inline-flex', alignItems: 'center', gap: 4,
+                              fontSize: 10, fontWeight: 700, color: '#791F1F', background: '#fde8e8',
+                              border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer',
+                            }}>
+                            Delete
+                          </button>
                         </div>
                       </div>
                     </div>

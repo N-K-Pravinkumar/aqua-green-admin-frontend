@@ -538,7 +538,13 @@ function ReviewStep({ customer, billType, items, payForm, gstPct, sgstPct, onSav
 export default function AdminBilling() {
   const [searchParams] = useSearchParams();
   const [customer, setCustomer]   = useState(null);
-  const [billType, setBillType]   = useState('service');
+  // Deep-link support: /admin/billing?billType=quotation (e.g. "+ Add" on a
+  // customer's History timeline) opens the wizard on that bill type instead
+  // of always defaulting to Service.
+  const requestedBillType = searchParams.get('billType');
+  const [billType, setBillType]   = useState(
+    ['service','sales','quotation'].includes(requestedBillType) ? requestedBillType : 'service'
+  );
   const [items, setItems]         = useState([calcItem({ ...EMPTY_ITEM })]);
   const [gstPct, setGstPct]       = useState(0);   // whole-bill GST %, default 0
   const [sgstPct, setSgstPct]     = useState(0);   // whole-bill SGST %, default 0

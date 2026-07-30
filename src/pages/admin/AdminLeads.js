@@ -56,6 +56,18 @@ export default function AdminLeads() {
     leadAPI.getById(editId).then(r => { if (r.data.data) openEdit(r.data.data); }).catch(()=>{});
   }, []);
 
+  // Deep-link support: /admin/leads?newForName=X&newForMobile=Y (e.g. "+ Add"
+  // on a customer's History timeline) opens the New Lead modal pre-filled
+  // for that customer instead of a blank form.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get('newForName'), mobile = params.get('newForMobile');
+    if (!name && !mobile) return;
+    setForm({ ...EMPTY, name: name || '', mobile: mobile || '' });
+    setEditItem(null);
+    setModalOpen(true);
+  }, []);
+
   const handleSearchChange = v => {
     setSearch(v);
     clearTimeout(debounce.current);

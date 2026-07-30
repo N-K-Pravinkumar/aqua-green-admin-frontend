@@ -373,6 +373,18 @@ export default function AdminServiceRequests() {
       .then(r => { if (r.data.data) openEdit(r.data.data); })
       .catch(()=>{});
   }, []);
+
+  // Deep-link support: /admin/service-requests?newForName=X&newForMobile=Y
+  // (e.g. "+ Add" on a customer's History timeline) opens the New Ticket
+  // modal pre-filled for that customer instead of a blank form.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get('newForName'), mobile = params.get('newForMobile');
+    if (!name && !mobile) return;
+    setForm({ ...EMPTY, customerName: name || '', customerMobile: mobile || '' });
+    setEditId(null);
+    setModal(true);
+  }, []);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const { show, ToastEl } = useToast();

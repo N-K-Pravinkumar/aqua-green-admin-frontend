@@ -460,6 +460,7 @@ export function CustomerDetailModal({ customer, onClose }) {
   const [addingNote, setAddingNote] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const TIMELINE_PAGE_SIZE = 15;
 
   // Plain helper (not referenced inside the effect below, so it doesn't need
@@ -749,19 +750,56 @@ export function CustomerDetailModal({ customer, onClose }) {
           </div>
         </div>
 
-        {/* ── Search + add detail ─────────────────────────────── */}
-        <div style={{ padding: '10px 16px', borderBottom: '1px solid #e9ecef', flexShrink: 0 }}>
+        {/* ── Search + add new ─────────────────────────────────── */}
+        <div style={{ padding: '10px 16px', borderBottom: '1px solid #e9ecef', flexShrink: 0, position: 'relative' }}>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
               value={search} onChange={e => { setSearch(e.target.value); setTimelinePage(0); }}
               placeholder="Search history…"
               style={{ flex: 1, fontSize: 13, padding: '7px 12px', border: '1px solid #e9ecef', borderRadius: 8, outline: 'none', background: '#f8f9fa' }}
             />
-            <button className="btn btn-ghost btn-sm" style={{ whiteSpace: 'nowrap' }}
-              onClick={() => setAddingNote(v => !v)}>
-              {addingNote ? 'Cancel' : '+ Add detail'}
+            <button className="btn btn-primary btn-sm" style={{ whiteSpace: 'nowrap' }}
+              onClick={() => setAddMenuOpen(v => !v)}>
+              + Add ▾
             </button>
           </div>
+
+          {/* Menu of what to create — each option jumps to that record type's
+              admin page with this customer pre-filled, same as clicking
+              "New Ticket" / "Add Sale" / etc. there manually. */}
+          {addMenuOpen && (
+            <div style={{
+              position: 'absolute', right: 16, top: 48, zIndex: 20, background: '#fff',
+              border: '1px solid #e9ecef', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.12)',
+              minWidth: 200, overflow: 'hidden',
+            }}>
+              {[
+                { label: '🔧 New Service Ticket', action: () => {
+                    window.location.href = `/admin/service-requests?newForName=${encodeURIComponent(customer.name||'')}&newForMobile=${encodeURIComponent(customer.mobile||'')}`;
+                  } },
+                { label: '🛒 New Sale', action: () => {
+                    window.location.href = `/admin/sales?newForName=${encodeURIComponent(customer.name||'')}&newForMobile=${encodeURIComponent(customer.mobile||'')}`;
+                  } },
+                { label: '📋 New Quotation', action: () => {
+                    window.location.href = `/admin/billing?billType=quotation&mobile=${encodeURIComponent(customer.mobile||'')}&name=${encodeURIComponent(customer.name||'')}`;
+                  } },
+                { label: '⚡ New Lead', action: () => {
+                    window.location.href = `/admin/leads?newForName=${encodeURIComponent(customer.name||'')}&newForMobile=${encodeURIComponent(customer.mobile||'')}`;
+                  } },
+                { label: '📝 Add a note', action: () => { setAddingNote(true); setAddMenuOpen(false); } },
+              ].map(opt => (
+                <button key={opt.label} onClick={opt.action} style={{
+                  display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px',
+                  border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13,
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#f8f9fa'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {addingNote && (
             <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
               <textarea
@@ -773,6 +811,10 @@ export function CustomerDetailModal({ customer, onClose }) {
               <button className="btn btn-primary btn-sm" style={{ alignSelf: 'flex-start' }}
                 onClick={saveNote} disabled={savingNote || !noteText.trim()}>
                 {savingNote ? 'Saving…' : 'Save'}
+              </button>
+              <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }}
+                onClick={() => { setAddingNote(false); setNoteText(''); }}>
+                Cancel
               </button>
             </div>
           )}

@@ -64,6 +64,18 @@ export function AdminSales() {
     }).catch(()=>{});
   }, []);
 
+  // Deep-link support: /admin/sales?newForName=X&newForMobile=Y (e.g. "+ Add"
+  // on a customer's History timeline) opens the Add Sale modal pre-filled
+  // for that customer instead of a blank form.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get('newForName'), mobile = params.get('newForMobile');
+    if (!name && !mobile) return;
+    setForm({ ...EMPTY_SALE, customerName: name || '', customerMobile: mobile || '' });
+    setEditItem(null);
+    setModalOpen(true);
+  }, []);
+
   const load = ()=>{
     setLoading(true);
     Promise.all([saleAPI.getAll(page,PAGE_SIZE),saleAPI.getStats(),productAPI.getAll()]).then(([r,sr,pr])=>{

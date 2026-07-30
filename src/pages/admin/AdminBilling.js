@@ -455,7 +455,7 @@ function PaymentStep({ billType, form, onChange, employees }) {
 // ─────────────────────────────────────────────────────────────
 // STEP 5 — Review + Save + Download PDF
 // ─────────────────────────────────────────────────────────────
-function ReviewStep({ customer, billType, items, payForm, gstPct, sgstPct, onSave, saved, onDownload, onSendWhatsapp, sendingWhatsapp, onReset, saving, downloading }) {
+function ReviewStep({ customer, billType, items, payForm, gstPct, sgstPct, onSave, saved, onDownload, onSendWhatsapp, sendingWhatsapp, onReset, onEditBill, saving, downloading }) {
   const totals = calcTotals(items, gstPct, sgstPct);
   const typeLabel = { service:'Service Bill', sales:'Sales Invoice', quotation:'Quotation' }[billType];
 
@@ -517,6 +517,10 @@ function ReviewStep({ customer, billType, items, payForm, gstPct, sgstPct, onSav
                 onClick={onSendWhatsapp} disabled={sendingWhatsapp} title={customer?.mobile ? `Send to ${customer.mobile}` : 'No mobile number on file'}>
                 {sendingWhatsapp ? 'Preparing…' : '💬 Send as PDF to WhatsApp'}
               </button>
+              <button className="btn btn-ghost" style={{ flex:1 }} onClick={onEditBill}
+                title="Change items/payment details and update this same bill">
+                ✏️ Edit bill
+              </button>
               <button className="btn btn-ghost" style={{ flex:1 }} onClick={onReset}>
                 New bill
               </button>
@@ -546,6 +550,7 @@ export default function AdminBilling() {
   const [downloading, setDownloading] = useState(false);
   const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
   const [saved, setSaved]         = useState(null); // { type, id, num }
+  const [editTarget, setEditTarget] = useState(null); // set while editing a previously-saved bill, instead of creating a new one
   const [toast, setToast]         = useState(null);
   const [stockItems, setStockItems] = useState([]);
   const [products, setProducts]   = useState([]);
@@ -576,9 +581,16 @@ export default function AdminBilling() {
 
   const reset = () => {
     setCustomer(null); setBillType('service');
-    setItems([calcItem({...EMPTY_ITEM})]); setSaved(null);
+    setItems([calcItem({...EMPTY_ITEM})]); setSaved(null); setEditTarget(null);
     setGstPct(0); setSgstPct(0);
     setPayForm({ paymentMethod:'CASH', paymentStatus:'PAID', technician:'', salesPerson:'', validityDays:30, notes:'' });
+  };
+
+  // Re-open a saved bill for editing — items/payment stay editable and
+  // Save now updates that same record instead of creating a new one.
+  const handleEditBill = () => {
+    setEditTarget(saved);
+    setSaved(null);
   };
 
   const totals = calcTotals(items, gstPct, sgstPct);
@@ -600,8 +612,10 @@ export default function AdminBilling() {
       const taxNote = `GST ${gstPct}% + SGST ${sgstPct}%`;
       const notesWithTax = payForm.notes ? `${payForm.notes}\n${taxNote}` : taxNote;
 
+      const isEditing = editTarget && editTarget.type === (billType === 'quotation' ? 'quotation' : billType === 'service' ? 'service' : 'sale');
+
       if (billType === 'quotation') {
-        const r = await quotationAPI.create({
+        const payload = {
           customer: { id: customer.id },
           customerName: customer.name,
           customerMobile: customer.mobile,
@@ -613,14 +627,16 @@ export default function AdminBilling() {
           notes:        notesWithTax,
           validityDays: payForm.validityDays,
           status:       'DRAFT',
-          quotationNumber: 'QT-' + uid(),
-        });
+          quotationNumber: isEditing ? editTarget.num : 'QT-' + uid(),
+        };
+        const r = isEditing ? await quotationAPI.update(editTarget.id, payload) : await quotationAPI.create(payload);
         const q = r.data.data;
         setSaved({ type:'quotation', id:q.id, num:q.quotationNumber });
-        notify(`Quotation ${q.quotationNumber} saved!`);
+        setEditTarget(null);
+        notify(`Quotation ${q.quotationNumber} ${isEditing ? 'updated' : 'saved'}!`);
 
       } else if (billType === 'service') {
-        // Create service request and immediately complete billing
+        // Create (or update) service request and immediately complete billing
         const srPayload = {
           customer: { id: customer.id },
           customerName:    customer.name,
@@ -636,17 +652,18 @@ export default function AdminBilling() {
           sparePartsJson:  itemsJson,
           sparePartsTotal: totals.subtotal,
           totalBillAmount: totals.totalAmount,
-          invoiceNumber:   'SVC-' + uid(),
+          invoiceNumber:   isEditing ? editTarget.num : 'SVC-' + uid(),
         };
-        const r = await serviceRequestAPI.create(srPayload);
+        const r = isEditing ? await serviceRequestAPI.update(editTarget.id, srPayload) : await serviceRequestAPI.create(srPayload);
         const sr = r.data.data;
         setSaved({ type:'service', id:sr.id, num:sr.invoiceNumber || sr.ticketNumber });
-        notify(`Service bill ${sr.invoiceNumber||sr.ticketNumber} saved!`);
+        setEditTarget(null);
+        notify(`Service bill ${sr.invoiceNumber||sr.ticketNumber} ${isEditing ? 'updated' : 'saved'}!`);
 
       } else {
         // Sales invoice
         const firstItem = items[0];
-        const r = await saleAPI.create({
+        const payload = {
           customer:       { id: customer.id },
           customerName:   customer.name,
           customerMobile: customer.mobile,
@@ -662,12 +679,14 @@ export default function AdminBilling() {
           paymentStatus:  payForm.paymentStatus,
           salesPerson:    payForm.salesPerson,
           notes:          notesWithTax,
-          invoiceNumber:  'INV-' + uid(),
+          invoiceNumber:  isEditing ? editTarget.num : 'INV-' + uid(),
           itemsJson,
-        });
+        };
+        const r = isEditing ? await saleAPI.update(editTarget.id, payload) : await saleAPI.create(payload);
         const sale = r.data.data;
         setSaved({ type:'sale', id:sale.id, num:sale.invoiceNumber });
-        notify(`Invoice ${sale.invoiceNumber} saved!`);
+        setEditTarget(null);
+        notify(`Invoice ${sale.invoiceNumber} ${isEditing ? 'updated' : 'saved'}!`);
       }
     } catch (e) {
       notify(e.response?.data?.message || 'Save failed', 'error');
@@ -801,7 +820,7 @@ export default function AdminBilling() {
               gstPct={gstPct} sgstPct={sgstPct}
               onSave={handleSave} saved={saved} onDownload={handleDownload}
               onSendWhatsapp={handleSendWhatsapp} sendingWhatsapp={sendingWhatsapp}
-              onReset={reset} saving={saving} downloading={downloading}
+              onReset={reset} onEditBill={handleEditBill} saving={saving} downloading={downloading}
             />
           </>
         )}

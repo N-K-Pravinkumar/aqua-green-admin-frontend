@@ -362,6 +362,17 @@ export default function AdminServiceRequests() {
   useEffect(() => {
     employeeAPI.getAll().then(r => setEmployees((r.data.data||[]).filter(e => e.active !== false))).catch(()=>{});
   }, []);
+
+  // Deep-link support: opening this page as /admin/service-requests?edit=<id>
+  // (e.g. from "Edit This Ticket" on a customer's History timeline) jumps
+  // straight into the edit modal for that ticket, no manual search needed.
+  useEffect(() => {
+    const editId = new URLSearchParams(window.location.search).get('edit');
+    if (!editId) return;
+    serviceRequestAPI.getById(editId)
+      .then(r => { if (r.data.data) openEdit(r.data.data); })
+      .catch(()=>{});
+  }, []);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const { show, ToastEl } = useToast();

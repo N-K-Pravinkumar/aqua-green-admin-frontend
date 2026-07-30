@@ -53,11 +53,27 @@ export function ServiceDetailModal({ service, onClose, onEdit }) {
   const productsSoldTotal = Number(service.productsSoldTotal || 0);
   const grandTotal = Number(service.totalBillAmount || (serviceCharge + sparePartsTotal + productsSoldTotal));
 
+  // Every charge entered on the bill (service charge, spare parts, filter
+  // changes, etc.) is just one of the itemized rows — it's the same amount as
+  // sparePartsTotal, so showing a separate "Service Charge" line on top would
+  // double it up on screen. Only fall back to a single flat charge row for
+  // older records saved before itemized billing existed (no spare parts at all).
+  const hasItemizedRows = spareParts.length > 0;
   const rows = [
-    { label: 'Service Charge', qty: '', price: '', total: serviceCharge, show: serviceCharge > 0 },
-    ...spareParts.map(p => ({ label: p.name || 'Spare Part', qty: p.qty || 1, price: p.unitPrice ?? p.price ?? '', total: Number(p.lineTotal ?? p.unitPrice ?? p.price ?? 0) * (p.lineTotal ? 1 : (p.qty || 1)), show: true })),
+    ...(!hasItemizedRows && serviceCharge > 0
+      ? [{ label: 'Service Charge', qty: '', price: '', total: serviceCharge, show: true }]
+      : []),
+    ...spareParts.map(p => {
+      const qty = Number(p.qty) || 1;
+      const price = Number(p.unitPrice ?? p.price ?? 0);
+      const total = p.lineTotal != null ? Number(p.lineTotal)
+        : p.total != null ? Number(p.total)
+        : price * qty;
+      return { label: p.description || p.name || 'Item', qty, price, total, show: true };
+    }),
     ...productsSold.map(p => ({ label: p.productName || p.name || 'Product', qty: p.qty || 1, price: p.unitPrice ?? '', total: Number(p.lineTotal ?? (Number(p.unitPrice||0) * (p.qty||1))), show: true })),
   ].filter(r => r.show);
+  const itemsTotal = hasItemizedRows ? sparePartsTotal : serviceCharge;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -108,9 +124,12 @@ export function ServiceDetailModal({ service, onClose, onEdit }) {
 
           <div style={{display:'flex', justifyContent:'flex-end'}}>
             <div style={{minWidth:220, fontSize:13}}>
-              {sparePartsTotal > 0 && <div style={{display:'flex', justifyContent:'space-between', padding:'4px 0'}}><span>Spare Parts</span><span>₹{sparePartsTotal.toLocaleString('en-IN')}</span></div>}
+              {itemsTotal > 0 && (
+                <div style={{display:'flex', justifyContent:'space-between', padding:'4px 0'}}>
+                  <span>{hasItemizedRows ? 'Items Total' : 'Service Charge'}</span><span>₹{itemsTotal.toLocaleString('en-IN')}</span>
+                </div>
+              )}
               {productsSoldTotal > 0 && <div style={{display:'flex', justifyContent:'space-between', padding:'4px 0'}}><span>Products Sold</span><span>₹{productsSoldTotal.toLocaleString('en-IN')}</span></div>}
-              {serviceCharge > 0 && <div style={{display:'flex', justifyContent:'space-between', padding:'4px 0'}}><span>Service Charge</span><span>₹{serviceCharge.toLocaleString('en-IN')}</span></div>}
               <div style={{display:'flex', justifyContent:'space-between', padding:'8px 0', borderTop:'2px solid #009B00', marginTop:4, fontWeight:800, fontSize:15, color:'#009B00'}}>
                 <span>TOTAL</span><span>₹{grandTotal.toLocaleString('en-IN')}</span>
               </div>
@@ -438,16 +457,42 @@ export function CustomerDetailModal({ customer, onClose }) {
   const [viewingEnquiry, setViewingEnquiry] = useState(null);
   const [timelinePage, setTimelinePage] = useState(0);
   const [maintPage, setMaintPage] = useState(0);
+  const [addingNote, setAddingNote] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
   const TIMELINE_PAGE_SIZE = 15;
 
-  useEffect(() => {
+  const loadTimeline = () => {
     if (!customer) return;
-    setLoading(true); setActiveTab('all'); setSearch(''); setTimelinePage(0); setMaintPage(0);
+    setLoading(true);
     customerAPI.getTimeline(customer.id)
       .then(r => setData(r.data.data))
       .catch(console.error)
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    if (!customer) return;
+    setActiveTab('all'); setSearch(''); setTimelinePage(0); setMaintPage(0);
+    setAddingNote(false); setNoteText('');
+    loadTimeline();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer]);
+
+  // Free-text detail entries — anything worth recording that doesn't fit
+  // leads/enquiries/sales/service (a phone call, a promise made, a special
+  // arrangement) — logged onto the same timeline via the existing message-log
+  // endpoint so it shows up with its own date, right alongside everything else.
+  const saveNote = async () => {
+    if (!noteText.trim()) return;
+    setSavingNote(true);
+    try {
+      await customerAPI.logMessage(customer.id, 'NOTE', noteText.trim());
+      setNoteText(''); setAddingNote(false);
+      loadTimeline();
+    } catch { alert('Could not save this note. Try again.'); }
+    setSavingNote(false);
+  };
 
   if (!customer) return null;
 
@@ -525,7 +570,7 @@ export function CustomerDetailModal({ customer, onClose }) {
     }));
     (data.messages || []).forEach(m => allEvents.push({
       type: 'message', date: m.createdAt,
-      title: `${(m.action||'').replace('_MESSAGE_SENT','').replace('_',' ')} message sent`,
+      title: m.action === 'NOTE_MESSAGE_SENT' ? 'Note added' : `${(m.action||'').replace('_MESSAGE_SENT','').replace('_',' ')} message sent`,
       sub: m.remarks || 'No details',
       raw: m,
     }));
@@ -542,7 +587,7 @@ export function CustomerDetailModal({ customer, onClose }) {
       const parts = JSON.parse(s.sparePartsJson);
       (Array.isArray(parts) ? parts : []).forEach(p => {
         maintenanceRows.push({
-          partName: p.name || 'Unnamed part',
+          partName: p.description || p.name || 'Unnamed part',
           qty: p.qty || 1,
           unitPrice: p.unitPrice ?? p.price ?? 0,
           date: s.completedAt || s.createdAt,
@@ -669,13 +714,33 @@ export function CustomerDetailModal({ customer, onClose }) {
           </div>
         </div>
 
-        {/* ── Search ───────────────────────────────────────────── */}
+        {/* ── Search + add detail ─────────────────────────────── */}
         <div style={{ padding: '10px 16px', borderBottom: '1px solid #e9ecef', flexShrink: 0 }}>
-          <input
-            value={search} onChange={e => { setSearch(e.target.value); setTimelinePage(0); }}
-            placeholder="Search history…"
-            style={{ width: '100%', fontSize: 13, padding: '7px 12px', border: '1px solid #e9ecef', borderRadius: 8, outline: 'none', background: '#f8f9fa' }}
-          />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              value={search} onChange={e => { setSearch(e.target.value); setTimelinePage(0); }}
+              placeholder="Search history…"
+              style={{ flex: 1, fontSize: 13, padding: '7px 12px', border: '1px solid #e9ecef', borderRadius: 8, outline: 'none', background: '#f8f9fa' }}
+            />
+            <button className="btn btn-ghost btn-sm" style={{ whiteSpace: 'nowrap' }}
+              onClick={() => setAddingNote(v => !v)}>
+              {addingNote ? 'Cancel' : '+ Add detail'}
+            </button>
+          </div>
+          {addingNote && (
+            <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+              <textarea
+                autoFocus value={noteText} onChange={e => setNoteText(e.target.value)}
+                placeholder="Anything worth remembering — a call, a promise, a special arrangement…"
+                rows={2}
+                style={{ flex: 1, fontSize: 13, padding: '7px 12px', border: '1px solid #e9ecef', borderRadius: 8, outline: 'none', resize: 'vertical' }}
+              />
+              <button className="btn btn-primary btn-sm" style={{ alignSelf: 'flex-start' }}
+                onClick={saveNote} disabled={savingNote || !noteText.trim()}>
+                {savingNote ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ── Timeline ─────────────────────────────────────────── */}
@@ -876,7 +941,8 @@ export function CustomerDetailModal({ customer, onClose }) {
         </div>
       </div>
       {viewingService && (
-        <ServiceDetailModal service={viewingService} onClose={()=>setViewingService(null)} />
+        <ServiceDetailModal service={viewingService} onClose={()=>setViewingService(null)}
+          onEdit={(svc) => { window.location.href = `/admin/service-requests?edit=${svc.id}`; }} />
       )}
       {viewingLead && (
         <LeadDetailModal lead={viewingLead} onClose={()=>setViewingLead(null)} />

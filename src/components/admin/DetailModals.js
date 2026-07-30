@@ -462,6 +462,9 @@ export function CustomerDetailModal({ customer, onClose }) {
   const [savingNote, setSavingNote] = useState(false);
   const TIMELINE_PAGE_SIZE = 15;
 
+  // Plain helper (not referenced inside the effect below, so it doesn't need
+  // to be listed as a dependency) — used to manually refresh after an edit,
+  // a new note, or a delete.
   const loadTimeline = () => {
     if (!customer) return;
     setLoading(true);
@@ -475,8 +478,11 @@ export function CustomerDetailModal({ customer, onClose }) {
     if (!customer) return;
     setActiveTab('all'); setSearch(''); setTimelinePage(0); setMaintPage(0);
     setAddingNote(false); setNoteText('');
-    loadTimeline();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setLoading(true);
+    customerAPI.getTimeline(customer.id)
+      .then(r => setData(r.data.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, [customer]);
 
   // Free-text detail entries — anything worth recording that doesn't fit

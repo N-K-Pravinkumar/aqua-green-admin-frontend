@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Pagination from '../../components/admin/Pagination';
 import SearchBox from '../../components/admin/SearchBox';
 import { AlertTriangle, CheckCircle, ChevronDown, Clock, CreditCard, Download, Edit, Eye, FileText, Hammer, Package, Plus, Receipt, Search, ShoppingCart, Trash2, Wrench, XCircle } from 'lucide-react';
-import { serviceRequestAPI, stockAPI, productAPI, serviceRequestExtAPI } from '../../services/api';
+import { serviceRequestAPI, stockAPI, productAPI, serviceRequestExtAPI, employeeAPI } from '../../services/api';
 import { useToast, ConfirmModal, formatDate, StatusBadge } from '../../components/admin/AdminHelpers';
 import RevenueAnalytics from '../../components/admin/RevenueAnalytics';
 import PermissionGate from '../../components/admin/PermissionGate';
@@ -357,6 +357,11 @@ export default function AdminServiceRequests() {
   const [viewService, setViewService] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
+  const [employees, setEmployees] = useState([]);
+
+  useEffect(() => {
+    employeeAPI.getAll().then(r => setEmployees((r.data.data||[]).filter(e => e.active !== false))).catch(()=>{});
+  }, []);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const { show, ToastEl } = useToast();
@@ -584,7 +589,14 @@ export default function AdminServiceRequests() {
                 <div className="form-group"><label className="form-label">Product Name</label><input className="form-input" value={form.productName} onChange={e=>f('productName',e.target.value)} placeholder="Kent Ace" /></div>
                 <div className="form-group"><label className="form-label">Model / Serial No</label><input className="form-input" value={form.productModel} onChange={e=>f('productModel',e.target.value)} placeholder="ACE-2023-XL" /></div>
                 <div className="form-group" style={{ gridColumn:'1/-1' }}><label className="form-label">Issue Description *</label><textarea className="form-textarea" value={form.issueDescription} onChange={e=>f('issueDescription',e.target.value)} placeholder="Describe the problem in detail…" /></div>
-                <div className="form-group"><label className="form-label">Assigned Technician</label><input className="form-input" value={form.assignedTechnician} onChange={e=>f('assignedTechnician',e.target.value)} placeholder="Murugan K" /></div>
+                <div className="form-group">
+                  <label className="form-label">Assigned Technician</label>
+                  <input className="form-input" value={form.assignedTechnician} onChange={e=>f('assignedTechnician',e.target.value)}
+                    list="assigned-technician-suggestions" placeholder="Pick an existing employee or type a new name" />
+                  <datalist id="assigned-technician-suggestions">
+                    {employees.map(emp => <option key={emp.id} value={emp.name} />)}
+                  </datalist>
+                </div>
                 <div className="form-group"><label className="form-label">Service Charge (₹)</label><input className="form-input" type="number" value={form.serviceCharge} onChange={e=>f('serviceCharge',e.target.value)} placeholder="250" /></div>
                 <div className="form-group"><label className="form-label">Status</label><select className="form-select" value={form.status} onChange={e=>f('status',e.target.value)}>{['PENDING','ASSIGNED','IN_PROGRESS','COMPLETED','CANCELLED'].map(s=><option key={s} value={s}>{s}</option>)}</select></div>
                 <div className="form-group"><label className="form-label">Priority</label><select className="form-select" value={form.priority} onChange={e=>f('priority',e.target.value)}>{['LOW','MEDIUM','HIGH','URGENT'].map(p=><option key={p} value={p}>{p}</option>)}</select></div>

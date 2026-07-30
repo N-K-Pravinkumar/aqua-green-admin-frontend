@@ -1,7 +1,7 @@
 import API_ROOT from '../../config/apiRoot';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { customerAPI, serviceRequestAPI, saleAPI, quotationAPI, stockAPI, productAPI } from '../../services/api';
+import { customerAPI, serviceRequestAPI, saleAPI, quotationAPI, stockAPI, productAPI, employeeAPI } from '../../services/api';
 import api from '../../services/api';
 
 // ─────────────────────────────────────────────────────────────
@@ -9,20 +9,38 @@ import api from '../../services/api';
 // ─────────────────────────────────────────────────────────────
 const rupee = n => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 const uid = () => Math.random().toString(36).slice(2, 8).toUpperCase();
-const EMPTY_ITEM = { description: '', qty: 1, unitPrice: '', gstPct: 18, total: 0, stockItemId: null, productId: null };
+const EMPTY_ITEM = { description: '', qty: 1, unitPrice: '', total: 0, stockItemId: null, productId: null };
+const ITEM_HISTORY_KEY = 'aga_billing_item_history';
 
+// Item description history — remembers everything typed before, across sessions,
+// so the description field can suggest previously-billed items alongside stock.
+function loadItemHistory() {
+  try { return JSON.parse(localStorage.getItem(ITEM_HISTORY_KEY)) || []; } catch { return []; }
+}
+function saveItemHistory(descriptions) {
+  try {
+    const existing = loadItemHistory();
+    const merged = [...new Set([...descriptions.filter(Boolean), ...existing])].slice(0, 200);
+    localStorage.setItem(ITEM_HISTORY_KEY, JSON.stringify(merged));
+  } catch { /* storage unavailable — ignore */ }
+}
+
+// GST/SGST are now applied once to the whole bill (not per line item), and
+// default to 0% for every new bill.
 function calcItem(it) {
   const base = (parseFloat(it.unitPrice) || 0) * (parseInt(it.qty) || 1);
-  const gst  = base * (parseFloat(it.gstPct) || 0) / 100;
-  return { ...it, total: +(base + gst).toFixed(2) };
+  return { ...it, total: +base.toFixed(2) };
 }
-function calcTotals(items) {
-  const sub = items.reduce((s, i) => s + (parseFloat(i.unitPrice)||0)*(parseInt(i.qty)||1), 0);
-  const gst = items.reduce((s, i) => {
-    const b = (parseFloat(i.unitPrice)||0)*(parseInt(i.qty)||1);
-    return s + b*(parseFloat(i.gstPct)||0)/100;
-  }, 0);
-  return { subtotal: +sub.toFixed(2), gstAmount: +gst.toFixed(2), totalAmount: +(sub+gst).toFixed(2) };
+function calcTotals(items, gstPct = 0, sgstPct = 0) {
+  const sub  = items.reduce((s, i) => s + (parseFloat(i.unitPrice)||0)*(parseInt(i.qty)||1), 0);
+  const gst  = sub * (parseFloat(gstPct)  || 0) / 100;
+  const sgst = sub * (parseFloat(sgstPct) || 0) / 100;
+  return {
+    subtotal: +sub.toFixed(2),
+    gstAmount: +gst.toFixed(2),
+    sgstAmount: +sgst.toFixed(2),
+    totalAmount: +(sub + gst + sgst).toFixed(2),
+  };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -219,12 +237,23 @@ function BillTypeStep({ selected, onSelect }) {
 // ─────────────────────────────────────────────────────────────
 // STEP 3 — Line items table
 // ─────────────────────────────────────────────────────────────
-function ItemsTable({ items, onChange, billType, stockItems, products }) {
+function ItemsTable({ items, onChange, billType, stockItems, products, gstPct, sgstPct, onTaxChange }) {
+  const [itemHistory] = useState(() => loadItemHistory());
   const update = (i, field, val) =>
     onChange(items.map((it, idx) => idx===i ? calcItem({...it,[field]:val}) : it));
   const add    = () => onChange([...items, calcItem({...EMPTY_ITEM})]);
   const remove = i => items.length > 1 && onChange(items.filter((_,idx) => idx!==i));
-  const totals = calcTotals(items);
+  const totals = calcTotals(items, gstPct, sgstPct);
+
+  // Combined suggestion list for the description autocomplete — current stock,
+  // catalogue products, and anything typed & saved on past bills.
+  const suggestions = [
+    ...new Set([
+      ...stockItems.map(s => `${s.name}${s.brand?` (${s.brand})`:''}`),
+      ...products.map(p => p.name + (p.model?` — ${p.model}`:'')),
+      ...itemHistory,
+    ].filter(Boolean)),
+  ];
 
   // Prefill from stock/product dropdown
   const fillFromStock = (i, id) => {
@@ -274,7 +303,7 @@ function ItemsTable({ items, onChange, billType, stockItems, products }) {
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
             <thead>
               <tr style={{ background:'#009B00', color:'#fff' }}>
-                {['Description','Qty','Unit Price (₹)','GST %','Amount',''].map(h => (
+                {['Description','Qty','Unit Price (₹)','Amount',''].map(h => (
                   <th key={h} style={{ padding:'8px 10px', textAlign:'left', fontSize:12, fontWeight:600 }}>{h}</th>
                 ))}
               </tr>
@@ -284,6 +313,7 @@ function ItemsTable({ items, onChange, billType, stockItems, products }) {
                 <tr key={i} style={{ borderBottom:'1px solid #f1f3f4' }}>
                   <td style={{ padding:'6px 4px' }}>
                     <input className="form-input" style={{ minWidth:200 }} value={it.description}
+                      list="item-description-suggestions"
                       placeholder={billType==='service'?'e.g. Service charge, Filter replacement…':'e.g. Kent Grand Plus…'}
                       onChange={e => update(i,'description',e.target.value)} />
                   </td>
@@ -296,12 +326,6 @@ function ItemsTable({ items, onChange, billType, stockItems, products }) {
                       value={it.unitPrice} placeholder="0.00"
                       onChange={e => update(i,'unitPrice',e.target.value)} />
                   </td>
-                  <td style={{ padding:'6px 4px' }}>
-                    <select className="form-select" style={{ width:72 }} value={it.gstPct}
-                      onChange={e => update(i,'gstPct',e.target.value)}>
-                      {[0,5,12,18,28].map(r => <option key={r}>{r}%</option>)}
-                    </select>
-                  </td>
                   <td style={{ padding:'6px 10px', fontWeight:600, color:'#009B00', whiteSpace:'nowrap' }}>
                     {rupee(it.total)}
                   </td>
@@ -313,17 +337,43 @@ function ItemsTable({ items, onChange, billType, stockItems, products }) {
               ))}
             </tbody>
           </table>
+          {/* Shared suggestion list — typing in any Description box will
+              autocomplete against stock, catalogue products, and past bills. */}
+          <datalist id="item-description-suggestions">
+            {suggestions.map(s => <option key={s} value={s} />)}
+          </datalist>
         </div>
 
-        {/* Totals summary */}
+        {/* Totals summary — GST and SGST are applied once to the whole bill,
+            not per item, and default to 0% until changed here. */}
         <div style={{ display:'flex', justifyContent:'flex-end', marginTop:14 }}>
-          <div style={{ minWidth:260 }}>
-            {[['Subtotal (ex-GST)', totals.subtotal], ['GST', totals.gstAmount]].map(([l,v]) => (
-              <div key={l} style={{ display:'flex', justifyContent:'space-between',
-                padding:'5px 0', borderBottom:'1px solid #e9ecef', fontSize:13, color:'#5f6368' }}>
-                <span>{l}</span><span>{rupee(v)}</span>
-              </div>
-            ))}
+          <div style={{ minWidth:280 }}>
+            <div style={{ display:'flex', justifyContent:'space-between',
+              padding:'5px 0', borderBottom:'1px solid #e9ecef', fontSize:13, color:'#5f6368' }}>
+              <span>Subtotal</span><span>{rupee(totals.subtotal)}</span>
+            </div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
+              padding:'5px 0', borderBottom:'1px solid #e9ecef', fontSize:13, color:'#5f6368' }}>
+              <span>GST</span>
+              <span style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <select className="form-select" style={{ width:72 }} value={gstPct}
+                  onChange={e => onTaxChange('gstPct', e.target.value)}>
+                  {[0,5,12,18,28].map(r => <option key={r} value={r}>{r}%</option>)}
+                </select>
+                {rupee(totals.gstAmount)}
+              </span>
+            </div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
+              padding:'5px 0', borderBottom:'1px solid #e9ecef', fontSize:13, color:'#5f6368' }}>
+              <span>SGST</span>
+              <span style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <select className="form-select" style={{ width:72 }} value={sgstPct}
+                  onChange={e => onTaxChange('sgstPct', e.target.value)}>
+                  {[0,5,12,18,28].map(r => <option key={r} value={r}>{r}%</option>)}
+                </select>
+                {rupee(totals.sgstAmount)}
+              </span>
+            </div>
             <div style={{ display:'flex', justifyContent:'space-between', padding:'12px 14px',
               background:'#009B00', color:'#fff', borderRadius:8, marginTop:8,
               fontWeight:700, fontSize:16 }}>
@@ -339,7 +389,7 @@ function ItemsTable({ items, onChange, billType, stockItems, products }) {
 // ─────────────────────────────────────────────────────────────
 // STEP 4 — Payment / extra details
 // ─────────────────────────────────────────────────────────────
-function PaymentStep({ billType, form, onChange }) {
+function PaymentStep({ billType, form, onChange, employees }) {
   const f = (k, v) => onChange({ ...form, [k]: v });
   return (
     <div className="section-card">
@@ -369,7 +419,11 @@ function PaymentStep({ billType, form, onChange }) {
             <div className="form-group">
               <label className="form-label">Technician name</label>
               <input className="form-input" value={form.technician} onChange={e => f('technician',e.target.value)}
-                placeholder="Who did the service?" />
+                list="technician-suggestions"
+                placeholder="Pick an existing employee or type a new name" />
+              <datalist id="technician-suggestions">
+                {employees.map(emp => <option key={emp.id} value={emp.name} />)}
+              </datalist>
             </div>
           )}
           {billType === 'sales' && (
@@ -401,8 +455,8 @@ function PaymentStep({ billType, form, onChange }) {
 // ─────────────────────────────────────────────────────────────
 // STEP 5 — Review + Save + Download PDF
 // ─────────────────────────────────────────────────────────────
-function ReviewStep({ customer, billType, items, payForm, onSave, saved, onDownload, onSendWhatsapp, sendingWhatsapp, onReset, saving, downloading }) {
-  const totals = calcTotals(items);
+function ReviewStep({ customer, billType, items, payForm, gstPct, sgstPct, onSave, saved, onDownload, onSendWhatsapp, sendingWhatsapp, onReset, saving, downloading }) {
+  const totals = calcTotals(items, gstPct, sgstPct);
   const typeLabel = { service:'Service Bill', sales:'Sales Invoice', quotation:'Quotation' }[billType];
 
   return (
@@ -426,7 +480,7 @@ function ReviewStep({ customer, billType, items, payForm, onSave, saved, onDownl
           <div style={{ background:'#009B00', borderRadius:8, padding:'12px 14px', color:'#fff' }}>
             <div style={{ fontSize:11, opacity:.7, marginBottom:3 }}>TOTAL AMOUNT</div>
             <div style={{ fontWeight:700, fontSize:20 }}>{rupee(totals.totalAmount)}</div>
-            <div style={{ fontSize:11, opacity:.7 }}>incl. GST {rupee(totals.gstAmount)}</div>
+            <div style={{ fontSize:11, opacity:.7 }}>incl. GST {rupee(totals.gstAmount)} + SGST {rupee(totals.sgstAmount)}</div>
           </div>
         </div>
 
@@ -482,6 +536,8 @@ export default function AdminBilling() {
   const [customer, setCustomer]   = useState(null);
   const [billType, setBillType]   = useState('service');
   const [items, setItems]         = useState([calcItem({ ...EMPTY_ITEM })]);
+  const [gstPct, setGstPct]       = useState(0);   // whole-bill GST %, default 0
+  const [sgstPct, setSgstPct]     = useState(0);   // whole-bill SGST %, default 0
   const [payForm, setPayForm]     = useState({
     paymentMethod: 'CASH', paymentStatus: 'PAID',
     technician: '', salesPerson: '', validityDays: 30, notes: '',
@@ -493,6 +549,7 @@ export default function AdminBilling() {
   const [toast, setToast]         = useState(null);
   const [stockItems, setStockItems] = useState([]);
   const [products, setProducts]   = useState([]);
+  const [employees, setEmployees] = useState([]);
 
   const notify = (msg, type='ok') => setToast({ msg, type });
 
@@ -501,6 +558,7 @@ export default function AdminBilling() {
       && (document.getElementById('admin-page-title').textContent = 'Billing & Invoicing');
     stockAPI.getAll().then(r => setStockItems(r.data.data||[])).catch(()=>{});
     productAPI.getAll().then(r => setProducts(r.data.data||[])).catch(()=>{});
+    employeeAPI.getAll().then(r => setEmployees((r.data.data||[]).filter(e => e.active !== false))).catch(()=>{});
 
     // Auto-fill from enquiry redirect: /admin/billing?mobile=9876543210&name=Ravi
     const mobile = searchParams.get('mobile');
@@ -519,10 +577,11 @@ export default function AdminBilling() {
   const reset = () => {
     setCustomer(null); setBillType('service');
     setItems([calcItem({...EMPTY_ITEM})]); setSaved(null);
+    setGstPct(0); setSgstPct(0);
     setPayForm({ paymentMethod:'CASH', paymentStatus:'PAID', technician:'', salesPerson:'', validityDays:30, notes:'' });
   };
 
-  const totals = calcTotals(items);
+  const totals = calcTotals(items, gstPct, sgstPct);
 
   // ── Save to database ────────────────────────────────────────
   const handleSave = async () => {
@@ -533,6 +592,13 @@ export default function AdminBilling() {
     setSaving(true);
     try {
       const itemsJson = JSON.stringify(items);
+      // Remember these descriptions so they autocomplete on future bills.
+      saveItemHistory(items.map(i => i.description.trim()));
+      // Backend stores one combined tax figure — GST + SGST are summed here,
+      // the per-bill split (gstPct/sgstPct) is kept in notes for the record.
+      const combinedGst = +(totals.gstAmount + totals.sgstAmount).toFixed(2);
+      const taxNote = `GST ${gstPct}% + SGST ${sgstPct}%`;
+      const notesWithTax = payForm.notes ? `${payForm.notes}\n${taxNote}` : taxNote;
 
       if (billType === 'quotation') {
         const r = await quotationAPI.create({
@@ -542,9 +608,9 @@ export default function AdminBilling() {
           customerAddress: customer.address,
           itemsJson,
           subtotal:     totals.subtotal,
-          gstAmount:    totals.gstAmount,
+          gstAmount:    combinedGst,
           totalAmount:  totals.totalAmount,
-          notes:        payForm.notes,
+          notes:        notesWithTax,
           validityDays: payForm.validityDays,
           status:       'DRAFT',
           quotationNumber: 'QT-' + uid(),
@@ -566,7 +632,7 @@ export default function AdminBilling() {
           status:          'COMPLETED',
           paymentStatus:   payForm.paymentStatus,
           paymentMethod:   payForm.paymentMethod,
-          notes:           payForm.notes,
+          notes:           notesWithTax,
           sparePartsJson:  itemsJson,
           sparePartsTotal: totals.subtotal,
           totalBillAmount: totals.totalAmount,
@@ -590,12 +656,12 @@ export default function AdminBilling() {
           quantity:       parseInt(firstItem.qty)||1,
           unitPrice:      parseFloat(firstItem.unitPrice)||0,
           discountAmount: 0,
-          gstAmount:      totals.gstAmount,
+          gstAmount:      combinedGst,
           totalAmount:    totals.totalAmount,
           paymentMethod:  payForm.paymentMethod,
           paymentStatus:  payForm.paymentStatus,
           salesPerson:    payForm.salesPerson,
-          notes:          payForm.notes,
+          notes:          notesWithTax,
           invoiceNumber:  'INV-' + uid(),
           itemsJson,
         });
@@ -722,10 +788,17 @@ export default function AdminBilling() {
           <>
             <BillTypeStep selected={billType} onSelect={t => { setBillType(t); setSaved(null); setItems([calcItem({...EMPTY_ITEM})]); }} />
             <ItemsTable items={items} onChange={v => { setItems(v); setSaved(null); }}
-              billType={billType} stockItems={stockItems} products={products} />
-            <PaymentStep billType={billType} form={payForm} onChange={f => { setPayForm(f); setSaved(null); }} />
+              billType={billType} stockItems={stockItems} products={products}
+              gstPct={gstPct} sgstPct={sgstPct}
+              onTaxChange={(field, val) => {
+                setSaved(null);
+                if (field === 'gstPct') setGstPct(val); else setSgstPct(val);
+              }} />
+            <PaymentStep billType={billType} form={payForm} employees={employees}
+              onChange={f => { setPayForm(f); setSaved(null); }} />
             <ReviewStep
               customer={customer} billType={billType} items={items} payForm={payForm}
+              gstPct={gstPct} sgstPct={sgstPct}
               onSave={handleSave} saved={saved} onDownload={handleDownload}
               onSendWhatsapp={handleSendWhatsapp} sendingWhatsapp={sendingWhatsapp}
               onReset={reset} saving={saving} downloading={downloading}

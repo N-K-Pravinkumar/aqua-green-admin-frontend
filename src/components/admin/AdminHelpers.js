@@ -64,6 +64,15 @@ export function formatDateTime(dt) {
   return new Date(dt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
+// For <input type="datetime-local"> value props — converts any date (or
+// nothing, meaning "now") into the "yyyy-MM-ddThh:mm" shape that input needs,
+// in the browser's local time so what's shown matches what the user expects.
+export function toDatetimeLocal(dt) {
+  const d = dt ? new Date(dt) : new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function useToast() {
   const [toast, setToast] = useState(null);
   const show = (message, type = 'success') => {

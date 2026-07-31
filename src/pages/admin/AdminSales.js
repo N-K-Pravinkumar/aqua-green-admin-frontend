@@ -4,10 +4,10 @@ import { Pencil, Trash2 } from 'lucide-react';
 import Pagination from '../../components/admin/Pagination';
 import SearchBox from '../../components/admin/SearchBox';
 import { saleAPI, customerAPI, productAPI } from '../../services/api';
-import { ConfirmModal, formatCurrency, formatDate, useToast } from '../../components/admin/AdminHelpers';
+import { ConfirmModal, formatCurrency, formatDate, useToast, toDatetimeLocal } from '../../components/admin/AdminHelpers';
 import RevenueAnalytics from '../../components/admin/RevenueAnalytics';
 
-const EMPTY_SALE = { customerName:'',productName:'',quantity:1,unitPrice:'',totalAmount:'',salesPerson:'',invoiceNumber:'',paymentStatus:'PAID',paymentMethod:'UPI' };
+const EMPTY_SALE = { customerName:'',productName:'',quantity:1,unitPrice:'',totalAmount:'',salesPerson:'',invoiceNumber:'',paymentStatus:'PAID',paymentMethod:'UPI',createdAt:toDatetimeLocal() };
 const STAFF = ['Murugan K','Senthil K','Karthik R','Arun Kumar'];
 const PAY_METHODS = ['CASH','UPI','CARD','BANK_TRANSFER'];
 
@@ -58,7 +58,7 @@ export function AdminSales() {
     saleAPI.getById(editId).then(r => {
       const s = r.data.data;
       if (!s) return;
-      setForm({customerName:s.customerName,productName:s.productName,quantity:s.quantity,unitPrice:s.unitPrice,totalAmount:s.totalAmount,salesPerson:s.salesPerson,invoiceNumber:s.invoiceNumber,paymentStatus:s.paymentStatus,paymentMethod:s.paymentMethod||'UPI'});
+      setForm({customerName:s.customerName,productName:s.productName,quantity:s.quantity,unitPrice:s.unitPrice,totalAmount:s.totalAmount,salesPerson:s.salesPerson,invoiceNumber:s.invoiceNumber,paymentStatus:s.paymentStatus,paymentMethod:s.paymentMethod||'UPI',createdAt:toDatetimeLocal(s.createdAt)});
       setEditItem(s);
       setModalOpen(true);
     }).catch(()=>{});
@@ -71,7 +71,7 @@ export function AdminSales() {
     const params = new URLSearchParams(window.location.search);
     const name = params.get('newForName'), mobile = params.get('newForMobile');
     if (!name && !mobile) return;
-    setForm({ ...EMPTY_SALE, customerName: name || '', customerMobile: mobile || '' });
+    setForm({ ...EMPTY_SALE, createdAt: toDatetimeLocal(), customerName: name || '', customerMobile: mobile || '' });
     setEditItem(null);
     setModalOpen(true);
   }, []);
@@ -112,7 +112,7 @@ export function AdminSales() {
         <div><div style={{fontSize:18,fontWeight:700}}>Sales</div></div>
         <div className="flex-gap">
           <button className="btn btn-ghost" onClick={()=>setImportOpen(true)}>Import Legacy Sales</button>
-          <button className="btn btn-primary" onClick={()=>{setForm(EMPTY_SALE);setEditItem(null);setModalOpen(true);}}>+ Add Sale</button>
+          <button className="btn btn-primary" onClick={()=>{setForm({...EMPTY_SALE,createdAt:toDatetimeLocal()});setEditItem(null);setModalOpen(true);}}>+ Add Sale</button>
         </div>
       </div>
       <div className="stats-grid" style={{gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',marginBottom:16}}>
@@ -138,7 +138,7 @@ export function AdminSales() {
                     <td><span className={`badge badge-${s.paymentStatus?.toLowerCase()}`}>{s.paymentStatus}</span></td>
                     <td style={{fontSize:11,color:'#9aa0a6'}}>{formatDate(s.createdAt)}</td>
                     <td><div className="flex-gap" style={{gap:4}}>
-                      <button className="btn btn-xs btn-ghost" onClick={()=>{setForm({customerName:s.customerName,productName:s.productName,quantity:s.quantity,unitPrice:s.unitPrice,totalAmount:s.totalAmount,salesPerson:s.salesPerson,invoiceNumber:s.invoiceNumber,paymentStatus:s.paymentStatus,paymentMethod:s.paymentMethod||'UPI'});setEditItem(s);setModalOpen(true);}}><Pencil size={13} style={{verticalAlign:'middle'}} /></button>
+                      <button className="btn btn-xs btn-ghost" onClick={()=>{setForm({customerName:s.customerName,productName:s.productName,quantity:s.quantity,unitPrice:s.unitPrice,totalAmount:s.totalAmount,salesPerson:s.salesPerson,invoiceNumber:s.invoiceNumber,paymentStatus:s.paymentStatus,paymentMethod:s.paymentMethod||'UPI',createdAt:toDatetimeLocal(s.createdAt)});setEditItem(s);setModalOpen(true);}}><Pencil size={13} style={{verticalAlign:'middle'}} /></button>
                       <button className="btn btn-xs btn-ghost" style={{color:'#A32D2D'}} onClick={()=>setDeleteId(s.id)}><Trash2 size={13} style={{verticalAlign:'middle'}} /></button>
                     </div></td>
                   </tr>
@@ -166,6 +166,7 @@ export function AdminSales() {
               <div className="form-group"><label className="form-label">Payment Method</label><select className="form-select" value={form.paymentMethod} onChange={e=>f('paymentMethod',e.target.value)}>{PAY_METHODS.map(m=><option key={m} value={m}>{m.replace('_',' ')}</option>)}</select></div>
               <div className="form-group"><label className="form-label">Payment Status</label><select className="form-select" value={form.paymentStatus} onChange={e=>f('paymentStatus',e.target.value)}>{['PAID','PENDING','OVERDUE'].map(s=><option key={s} value={s}>{s}</option>)}</select></div>
               <div className="form-group"><label className="form-label">Invoice Number</label><input className="form-input" value={form.invoiceNumber} onChange={e=>f('invoiceNumber',e.target.value)} placeholder="Auto-generated if empty" /></div>
+              <div className="form-group"><label className="form-label">Sale date</label><input className="form-input" type="datetime-local" value={form.createdAt} onChange={e=>f('createdAt',e.target.value)} /></div>
             </div>
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={()=>setModalOpen(false)}>Cancel</button>

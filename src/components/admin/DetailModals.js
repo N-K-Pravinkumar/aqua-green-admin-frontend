@@ -97,14 +97,8 @@ export function ServiceDetailModal({ service, onClose, onEdit }) {
             <div><span style={{color:'#9aa0a6'}}>Ticket date:</span> {formatDate(service.createdAt)}</div>
           </div>
 
-          {service.issueDescription && (
-            <div style={{fontSize:13, background:'#f8fafc', padding:10, borderRadius:8}}>
-              <span style={{color:'#9aa0a6'}}>Issue:</span> {service.issueDescription}
-            </div>
-          )}
-
           <div>
-            <div style={{fontSize:12, fontWeight:700, color:'#6b7280', marginBottom:6}}>WHAT WAS DONE</div>
+            <div style={{fontSize:12, fontWeight:700, color:'#6b7280', marginBottom:6}}>BILL</div>
             {rows.length === 0 ? (
               <div style={{fontSize:13, color:'#9aa0a6', padding:12, textAlign:'center', background:'#f8fafc', borderRadius:8}}>No itemized charges recorded for this ticket.</div>
             ) : (
@@ -132,8 +126,8 @@ export function ServiceDetailModal({ service, onClose, onEdit }) {
                 </div>
               )}
               {productsSoldTotal > 0 && <div style={{display:'flex', justifyContent:'space-between', padding:'4px 0'}}><span>Products Sold</span><span>₹{productsSoldTotal.toLocaleString('en-IN')}</span></div>}
-              {gstAmount > 0 && <div style={{display:'flex', justifyContent:'space-between', padding:'4px 0'}}><span>GST</span><span>₹{gstAmount.toLocaleString('en-IN')}</span></div>}
-              {sgstAmount > 0 && <div style={{display:'flex', justifyContent:'space-between', padding:'4px 0'}}><span>SGST</span><span>₹{sgstAmount.toLocaleString('en-IN')}</span></div>}
+              <div style={{display:'flex', justifyContent:'space-between', padding:'4px 0'}}><span>GST</span><span>₹{gstAmount.toLocaleString('en-IN')}</span></div>
+              <div style={{display:'flex', justifyContent:'space-between', padding:'4px 0'}}><span>SGST</span><span>₹{sgstAmount.toLocaleString('en-IN')}</span></div>
               <div style={{display:'flex', justifyContent:'space-between', padding:'8px 0', borderTop:'2px solid #009B00', marginTop:4, fontWeight:800, fontSize:15, color:'#009B00'}}>
                 <span>TOTAL</span><span>₹{grandTotal.toLocaleString('en-IN')}</span>
               </div>

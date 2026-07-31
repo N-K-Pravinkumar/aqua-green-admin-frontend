@@ -4,10 +4,10 @@ import { customerAPI, seedCleanupAPI } from '../../services/api';
 import MaintenancePanel from '../../components/admin/MaintenancePanel';
 import Pagination from '../../components/admin/Pagination';
 import SearchBox from '../../components/admin/SearchBox';
-import { ConfirmModal, formatDate, useToast } from '../../components/admin/AdminHelpers';
+import { ConfirmModal, formatDate, useToast, toDatetimeLocal } from '../../components/admin/AdminHelpers';
 import { CustomerDetailModal } from '../../components/admin/DetailModals';
 
-const EMPTY = { name:'',mobile:'',email:'',address:'',city:'',gstNumber:'',customerType:'RESIDENTIAL' };
+const EMPTY = { name:'',mobile:'',email:'',address:'',city:'',gstNumber:'',customerType:'RESIDENTIAL', createdAt: toDatetimeLocal() };
 
 export default function AdminCustomers() {
   const [customers, setCustomers] = useState([]);
@@ -83,8 +83,8 @@ export default function AdminCustomers() {
   const filtered = singleResult ? [singleResult] : customers;
   const effectivePageInfo = singleResult ? { totalPages:1, totalElements:1 } : pageInfo;
 
-  const openEdit = c => { setForm({name:c.name,mobile:c.mobile,email:c.email||'',address:c.address||'',city:c.city||'',gstNumber:c.gstNumber||'',customerType:c.customerType||'RESIDENTIAL'}); setEditItem(c); setModalOpen(true); };
-  const openCreate = () => { setForm(EMPTY); setEditItem(null); setModalOpen(true); };
+  const openEdit = c => { setForm({name:c.name,mobile:c.mobile,email:c.email||'',address:c.address||'',city:c.city||'',gstNumber:c.gstNumber||'',customerType:c.customerType||'RESIDENTIAL',createdAt:toDatetimeLocal(c.createdAt)}); setEditItem(c); setModalOpen(true); };
+  const openCreate = () => { setForm({ ...EMPTY, createdAt: toDatetimeLocal() }); setEditItem(null); setModalOpen(true); };
 
   const handleSave = async () => {
     if (!form.name||!form.mobile){show('Name & mobile required','error');return;}
@@ -199,6 +199,7 @@ export default function AdminCustomers() {
               <div className="form-group" style={{gridColumn:'1/-1'}}><label className="form-label">Address</label><textarea className="form-textarea" style={{minHeight:60}} value={form.address} onChange={e=>setForm(p=>({...p,address:e.target.value}))} placeholder="Full address…" /></div>
               <div className="form-group"><label className="form-label">Customer Type</label><select className="form-select" value={form.customerType} onChange={e=>setForm(p=>({...p,customerType:e.target.value}))}><option value="RESIDENTIAL">Residential</option><option value="COMMERCIAL">Commercial</option></select></div>
               <div className="form-group"><label className="form-label">GST Number</label><input className="form-input" value={form.gstNumber} onChange={e=>setForm(p=>({...p,gstNumber:e.target.value}))} placeholder="Optional" /></div>
+              <div className="form-group"><label className="form-label">Customer since</label><input className="form-input" type="datetime-local" value={form.createdAt} onChange={e=>setForm(p=>({...p,createdAt:e.target.value}))} /></div>
             </div>
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={()=>setModalOpen(false)}>Cancel</button>

@@ -3,7 +3,7 @@ import Pagination from '../../components/admin/Pagination';
 import SearchBox from '../../components/admin/SearchBox';
 import { AlertTriangle, CheckCircle, ChevronDown, Clock, CreditCard, Download, Edit, Eye, FileText, Hammer, Package, Plus, Receipt, Search, ShoppingCart, Trash2, Wrench, XCircle } from 'lucide-react';
 import { serviceRequestAPI, stockAPI, productAPI, serviceRequestExtAPI, employeeAPI } from '../../services/api';
-import { useToast, ConfirmModal, formatDate, StatusBadge } from '../../components/admin/AdminHelpers';
+import { useToast, ConfirmModal, formatDate, StatusBadge, toDatetimeLocal } from '../../components/admin/AdminHelpers';
 import RevenueAnalytics from '../../components/admin/RevenueAnalytics';
 import PermissionGate from '../../components/admin/PermissionGate';
 import { ServiceDetailModal } from '../../components/admin/DetailModals';
@@ -333,7 +333,8 @@ function BillingModal({ sr, onClose, onSaved, show }) {
 // ══════════════════════════════════════════════════════════════
 const EMPTY = {
   customerName:'', customerMobile:'', customerAddress:'', productName:'', productModel:'',
-  issueDescription:'', assignedTechnician:'', serviceCharge:'', status:'PENDING', priority:'MEDIUM', technicianNotes:''
+  issueDescription:'', assignedTechnician:'', serviceCharge:'', status:'PENDING', priority:'MEDIUM', technicianNotes:'',
+  createdAt: toDatetimeLocal()
 };
 
 export default function AdminServiceRequests() {
@@ -381,7 +382,7 @@ export default function AdminServiceRequests() {
     const params = new URLSearchParams(window.location.search);
     const name = params.get('newForName'), mobile = params.get('newForMobile');
     if (!name && !mobile) return;
-    setForm({ ...EMPTY, customerName: name || '', customerMobile: mobile || '' });
+    setForm({ ...EMPTY, createdAt: toDatetimeLocal(), customerName: name || '', customerMobile: mobile || '' });
     setEditId(null);
     setModal(true);
   }, []);
@@ -425,8 +426,8 @@ export default function AdminServiceRequests() {
   }, []);
   const changeStatus = (s) => { setStatus(s); setPage(0); };
 
-  const openCreate = () => { setForm(EMPTY); setEditId(null); setModal(true); };
-  const openEdit   = sr  => { setForm({ customerName:sr.customerName||'', customerMobile:sr.customerMobile||'', customerAddress:sr.customerAddress||'', productName:sr.productName||'', productModel:sr.productModel||'', issueDescription:sr.issueDescription||'', assignedTechnician:sr.assignedTechnician||'', serviceCharge:sr.serviceCharge||'', status:sr.status||'PENDING', priority:sr.priority||'MEDIUM', technicianNotes:sr.technicianNotes||'' }); setEditId(sr.id); setModal(true); };
+  const openCreate = () => { setForm({ ...EMPTY, createdAt: toDatetimeLocal() }); setEditId(null); setModal(true); };
+  const openEdit   = sr  => { setForm({ customerName:sr.customerName||'', customerMobile:sr.customerMobile||'', customerAddress:sr.customerAddress||'', productName:sr.productName||'', productModel:sr.productModel||'', issueDescription:sr.issueDescription||'', assignedTechnician:sr.assignedTechnician||'', serviceCharge:sr.serviceCharge||'', status:sr.status||'PENDING', priority:sr.priority||'MEDIUM', technicianNotes:sr.technicianNotes||'', createdAt: toDatetimeLocal(sr.createdAt) }); setEditId(sr.id); setModal(true); };
 
   const handleSave = async () => {
     if (!form.customerName || !form.issueDescription) { show('Customer name and issue required','error'); return; }
@@ -623,6 +624,7 @@ export default function AdminServiceRequests() {
                 <div className="form-group"><label className="form-label">Service Charge (₹)</label><input className="form-input" type="number" value={form.serviceCharge} onChange={e=>f('serviceCharge',e.target.value)} placeholder="250" /></div>
                 <div className="form-group"><label className="form-label">Status</label><select className="form-select" value={form.status} onChange={e=>f('status',e.target.value)}>{['PENDING','ASSIGNED','IN_PROGRESS','COMPLETED','CANCELLED'].map(s=><option key={s} value={s}>{s}</option>)}</select></div>
                 <div className="form-group"><label className="form-label">Priority</label><select className="form-select" value={form.priority} onChange={e=>f('priority',e.target.value)}>{['LOW','MEDIUM','HIGH','URGENT'].map(p=><option key={p} value={p}>{p}</option>)}</select></div>
+                <div className="form-group"><label className="form-label">Ticket date</label><input className="form-input" type="datetime-local" value={form.createdAt} onChange={e=>f('createdAt',e.target.value)} /></div>
                 <div className="form-group" style={{ gridColumn:'1/-1' }}><label className="form-label">Technician Notes</label><textarea className="form-textarea" value={form.technicianNotes} onChange={e=>f('technicianNotes',e.target.value)} placeholder="Work done, parts replaced…" /></div>
               </div>
               <div className="modal-footer">

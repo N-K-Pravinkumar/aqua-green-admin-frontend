@@ -51,7 +51,9 @@ export function ServiceDetailModal({ service, onClose, onEdit }) {
   const serviceCharge = Number(service.serviceCharge || 0);
   const sparePartsTotal = Number(service.sparePartsTotal || 0);
   const productsSoldTotal = Number(service.productsSoldTotal || 0);
-  const grandTotal = Number(service.totalBillAmount || (serviceCharge + sparePartsTotal + productsSoldTotal));
+  const gstAmount = Number(service.gstAmount || 0);
+  const sgstAmount = Number(service.sgstAmount || 0);
+  const grandTotal = Number(service.totalBillAmount || (serviceCharge + sparePartsTotal + productsSoldTotal + gstAmount + sgstAmount));
 
   // Every charge entered on the bill (service charge, spare parts, filter
   // changes, etc.) is just one of the itemized rows — it's the same amount as
@@ -130,6 +132,8 @@ export function ServiceDetailModal({ service, onClose, onEdit }) {
                 </div>
               )}
               {productsSoldTotal > 0 && <div style={{display:'flex', justifyContent:'space-between', padding:'4px 0'}}><span>Products Sold</span><span>₹{productsSoldTotal.toLocaleString('en-IN')}</span></div>}
+              {gstAmount > 0 && <div style={{display:'flex', justifyContent:'space-between', padding:'4px 0'}}><span>GST</span><span>₹{gstAmount.toLocaleString('en-IN')}</span></div>}
+              {sgstAmount > 0 && <div style={{display:'flex', justifyContent:'space-between', padding:'4px 0'}}><span>SGST</span><span>₹{sgstAmount.toLocaleString('en-IN')}</span></div>}
               <div style={{display:'flex', justifyContent:'space-between', padding:'8px 0', borderTop:'2px solid #009B00', marginTop:4, fontWeight:800, fontSize:15, color:'#009B00'}}>
                 <span>TOTAL</span><span>₹{grandTotal.toLocaleString('en-IN')}</span>
               </div>

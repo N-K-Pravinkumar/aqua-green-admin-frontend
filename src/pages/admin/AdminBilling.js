@@ -356,10 +356,12 @@ function ItemsTable({ items, onChange, billType, stockItems, products, gstPct, s
               padding:'5px 0', borderBottom:'1px solid #e9ecef', fontSize:13, color:'#5f6368' }}>
               <span>GST</span>
               <span style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <select className="form-select" style={{ width:72 }} value={gstPct}
-                  onChange={e => onTaxChange('gstPct', e.target.value)}>
-                  {[0,5,12,18,28].map(r => <option key={r} value={r}>{r}%</option>)}
-                </select>
+                <span style={{ position:'relative', display:'inline-flex', alignItems:'center' }}>
+                  <input className="form-input" type="number" min={0} max={100} step="0.01"
+                    style={{ width:72, paddingRight:18 }} value={gstPct} list="gst-pct-suggestions"
+                    onChange={e => onTaxChange('gstPct', e.target.value)} />
+                  <span style={{ position:'absolute', right:6, fontSize:12, color:'#9aa0a6', pointerEvents:'none' }}>%</span>
+                </span>
                 {rupee(totals.gstAmount)}
               </span>
             </div>
@@ -367,13 +369,19 @@ function ItemsTable({ items, onChange, billType, stockItems, products, gstPct, s
               padding:'5px 0', borderBottom:'1px solid #e9ecef', fontSize:13, color:'#5f6368' }}>
               <span>SGST</span>
               <span style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <select className="form-select" style={{ width:72 }} value={sgstPct}
-                  onChange={e => onTaxChange('sgstPct', e.target.value)}>
-                  {[0,5,12,18,28].map(r => <option key={r} value={r}>{r}%</option>)}
-                </select>
+                <span style={{ position:'relative', display:'inline-flex', alignItems:'center' }}>
+                  <input className="form-input" type="number" min={0} max={100} step="0.01"
+                    style={{ width:72, paddingRight:18 }} value={sgstPct} list="gst-pct-suggestions"
+                    onChange={e => onTaxChange('sgstPct', e.target.value)} />
+                  <span style={{ position:'absolute', right:6, fontSize:12, color:'#9aa0a6', pointerEvents:'none' }}>%</span>
+                </span>
                 {rupee(totals.sgstAmount)}
               </span>
             </div>
+            {/* Quick-pick suggestions — still fully editable, not limited to these */}
+            <datalist id="gst-pct-suggestions">
+              {[0,2.5,5,6,9,12,18,28].map(r => <option key={r} value={r} />)}
+            </datalist>
             <div style={{ display:'flex', justifyContent:'space-between', padding:'12px 14px',
               background:'#009B00', color:'#fff', borderRadius:8, marginTop:8,
               fontWeight:700, fontSize:16 }}>
@@ -398,6 +406,11 @@ function PaymentStep({ billType, form, onChange, employees }) {
       </div>
       <div className="section-card-body">
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
+          <div className="form-group">
+            <label className="form-label">Customer GSTIN (optional)</label>
+            <input className="form-input" value={form.customerGstNumber} onChange={e => f('customerGstNumber',e.target.value)}
+              placeholder="33XXXXXXXXXXXXX" />
+          </div>
           {billType !== 'quotation' && (
             <>
               <div className="form-group">
@@ -478,9 +491,9 @@ function ReviewStep({ customer, billType, items, payForm, gstPct, sgstPct, onSav
             <div style={{ fontSize:12, color:'#5f6368' }}>{items.length} item(s)</div>
           </div>
           <div style={{ background:'#009B00', borderRadius:8, padding:'12px 14px', color:'#fff' }}>
+            <div style={{ fontSize:11, opacity:.7, marginBottom:3 }}>GST {rupee(totals.gstAmount)} + SGST {rupee(totals.sgstAmount)}</div>
             <div style={{ fontSize:11, opacity:.7, marginBottom:3 }}>TOTAL AMOUNT</div>
             <div style={{ fontWeight:700, fontSize:20 }}>{rupee(totals.totalAmount)}</div>
-            <div style={{ fontSize:11, opacity:.7 }}>incl. GST {rupee(totals.gstAmount)} + SGST {rupee(totals.sgstAmount)}</div>
           </div>
         </div>
 
@@ -550,7 +563,7 @@ export default function AdminBilling() {
   const [sgstPct, setSgstPct]     = useState(0);   // whole-bill SGST %, default 0
   const [payForm, setPayForm]     = useState({
     paymentMethod: 'CASH', paymentStatus: 'PAID',
-    technician: '', salesPerson: '', validityDays: 30, notes: '',
+    technician: '', salesPerson: '', validityDays: 30, notes: '', customerGstNumber: '',
   });
   const [saving, setSaving]       = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -589,7 +602,7 @@ export default function AdminBilling() {
     setCustomer(null); setBillType('service');
     setItems([calcItem({...EMPTY_ITEM})]); setSaved(null); setEditTarget(null);
     setGstPct(0); setSgstPct(0);
-    setPayForm({ paymentMethod:'CASH', paymentStatus:'PAID', technician:'', salesPerson:'', validityDays:30, notes:'' });
+    setPayForm({ paymentMethod:'CASH', paymentStatus:'PAID', technician:'', salesPerson:'', validityDays:30, notes:'', customerGstNumber:'' });
   };
 
   // Re-open a saved bill for editing — items/payment stay editable and
@@ -612,11 +625,6 @@ export default function AdminBilling() {
       const itemsJson = JSON.stringify(items);
       // Remember these descriptions so they autocomplete on future bills.
       saveItemHistory(items.map(i => i.description.trim()));
-      // Backend stores one combined tax figure — GST + SGST are summed here,
-      // the per-bill split (gstPct/sgstPct) is kept in notes for the record.
-      const combinedGst = +(totals.gstAmount + totals.sgstAmount).toFixed(2);
-      const taxNote = `GST ${gstPct}% + SGST ${sgstPct}%`;
-      const notesWithTax = payForm.notes ? `${payForm.notes}\n${taxNote}` : taxNote;
 
       const isEditing = editTarget && editTarget.type === (billType === 'quotation' ? 'quotation' : billType === 'service' ? 'service' : 'sale');
 
@@ -628,9 +636,11 @@ export default function AdminBilling() {
           customerAddress: customer.address,
           itemsJson,
           subtotal:     totals.subtotal,
-          gstAmount:    combinedGst,
+          gstAmount:    totals.gstAmount,
+          sgstAmount:   totals.sgstAmount,
+          customerGstNumber: payForm.customerGstNumber || '',
           totalAmount:  totals.totalAmount,
-          notes:        notesWithTax,
+          notes:        payForm.notes,
           validityDays: payForm.validityDays,
           status:       'DRAFT',
           quotationNumber: isEditing ? editTarget.num : 'QT-' + uid(),
@@ -654,9 +664,12 @@ export default function AdminBilling() {
           status:          'COMPLETED',
           paymentStatus:   payForm.paymentStatus,
           paymentMethod:   payForm.paymentMethod,
-          notes:           notesWithTax,
+          notes:           payForm.notes,
+          customerGstNumber: payForm.customerGstNumber || '',
           sparePartsJson:  itemsJson,
           sparePartsTotal: totals.subtotal,
+          gstAmount:       totals.gstAmount,
+          sgstAmount:      totals.sgstAmount,
           totalBillAmount: totals.totalAmount,
           invoiceNumber:   isEditing ? editTarget.num : 'SVC-' + uid(),
         };
@@ -679,12 +692,14 @@ export default function AdminBilling() {
           quantity:       parseInt(firstItem.qty)||1,
           unitPrice:      parseFloat(firstItem.unitPrice)||0,
           discountAmount: 0,
-          gstAmount:      combinedGst,
+          gstAmount:      totals.gstAmount,
+          sgstAmount:     totals.sgstAmount,
+          customerGstNumber: payForm.customerGstNumber || '',
           totalAmount:    totals.totalAmount,
           paymentMethod:  payForm.paymentMethod,
           paymentStatus:  payForm.paymentStatus,
           salesPerson:    payForm.salesPerson,
-          notes:          notesWithTax,
+          notes:          payForm.notes,
           invoiceNumber:  isEditing ? editTarget.num : 'INV-' + uid(),
           itemsJson,
         };
@@ -806,7 +821,7 @@ export default function AdminBilling() {
 
       <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
         {/* Step 1 */}
-        <CustomerStep onDone={c => { setCustomer(c); setSaved(null); }} />
+        <CustomerStep onDone={c => { setCustomer(c); setSaved(null); setPayForm(f => ({ ...f, customerGstNumber: c.gstNumber || f.customerGstNumber })); }} />
 
         {/* Steps 2-5 — only shown after customer selected */}
         {canProceed && (

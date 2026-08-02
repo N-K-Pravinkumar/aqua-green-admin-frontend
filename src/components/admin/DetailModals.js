@@ -578,7 +578,7 @@ export function CustomerDetailModal({ customer, onClose }) {
       badge: e.status, raw: e,
     }));
     (data.serviceRequests || []).forEach(s => allEvents.push({
-      type: 'service', date: s.createdAt,
+      type: 'service', date: s.completedAt || s.createdAt,
       title: s.issueDescription?.slice(0, 60) || 'Service visit',
       sub: `${s.ticketNumber} · Technician: ${s.assignedTechnician || 'Unassigned'}`,
       badge: s.status, amount: s.totalBillAmount || s.serviceCharge,

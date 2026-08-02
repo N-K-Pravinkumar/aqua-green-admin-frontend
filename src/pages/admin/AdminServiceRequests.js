@@ -552,7 +552,7 @@ export default function AdminServiceRequests() {
                         {sr.priority}
                       </span>
                     </td>
-                    <td style={{ fontSize:11, color:'#9ca3af' }}>{formatDate(sr.createdAt)}</td>
+                    <td style={{ fontSize:11, color:'#9ca3af' }}>{formatDate(sr.completedAt || sr.createdAt)}</td>
                     <td>
                       <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
                         {/* Billing button */}

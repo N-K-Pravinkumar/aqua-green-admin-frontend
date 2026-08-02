@@ -134,6 +134,23 @@ export default function AdminCustomers() {
             } catch { show('Cleanup failed', 'error'); }
           }}>Remove Demo Data</button>
           <button className="btn btn-ghost" onClick={async()=>{
+            try {
+              const r = await seedCleanupAPI.preview();
+              const d = r.data.data;
+              const n1 = d.autoCreatedHistoryNoise || 0;
+              const n2 = d.legacyServiceDateMismatches || 0;
+              if (n1 === 0 && n2 === 0) { show('Nothing to fix — dates and history are already clean'); return; }
+              const msg = `Found:\n${n1} fake "message" history entries (auto-generated on customer creation, never actually sent)\n${n2} imported service tickets where the shown date doesn't match the actual billed/completed date.\n\nFix both now? Only these are touched — no amounts, statuses, or other records are changed.`;
+              if (!window.confirm(msg)) return;
+              const [r1, r2] = await Promise.all([
+                seedCleanupAPI.cleanHistoryNoise(),
+                seedCleanupAPI.fixLegacyServiceDates(),
+              ]);
+              show(`${r1.data.message} · ${r2.data.message}`);
+              load();
+            } catch { show('Fix failed', 'error'); }
+          }}>Fix Dates &amp; History</button>
+          <button className="btn btn-ghost" onClick={async()=>{
             if (!window.confirm('This will merge any customers sharing the same mobile number into one record. Safe to run — it only combines duplicates, nothing is lost. Continue?')) return;
             try {
               const r = await customerAPI.mergeDuplicates();

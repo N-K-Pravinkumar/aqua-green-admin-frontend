@@ -708,8 +708,18 @@ export function CustomerDetailModal({ customer, onClose }) {
               { label: 'Leads',       value: (data?.leads||[]).length,                  color: '#fff' },
               { label: 'Enquiries',   value: (data?.enquiries||[]).length,              color: '#fff' },
               { label: 'Customer since', value: (() => {
-                  const earliest = allEvents.length > 0
-                    ? allEvents.reduce((min, ev) => new Date(ev.date) < new Date(min) ? ev.date : min, allEvents[0].date)
+                  // "Customer since" should reflect their first real
+                  // transaction — first sale or first completed service —
+                  // NOT when the record was entered into the system (which
+                  // for legacy-imported customers is just the import date,
+                  // sometimes long after their actual first purchase/visit).
+                  const saleDates = (data?.sales || []).map(s => s.createdAt).filter(Boolean);
+                  const serviceDates = (data?.serviceRequests || [])
+                    .map(s => s.completedAt || s.createdAt)
+                    .filter(Boolean);
+                  const candidates = [...saleDates, ...serviceDates];
+                  const earliest = candidates.length > 0
+                    ? candidates.reduce((min, d) => new Date(d) < new Date(min) ? d : min, candidates[0])
                     : customer.createdAt;
                   return earliest ? new Date(earliest).toLocaleDateString('en-IN',{month:'short',year:'numeric'}) : '—';
                 })(), color: 'rgba(255,255,255,.6)' },

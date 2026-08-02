@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Phone, MessageCircle, Wrench, X } from 'lucide-react';
-import { maintenanceAPI, templateAPI, customerAPI } from '../../services/api';
+import { maintenanceAPI, templateAPI } from '../../services/api';
 import { formatDate } from './AdminHelpers';
 import Pagination from './Pagination';
 
@@ -67,9 +67,6 @@ export default function MaintenancePanel({ onClose }) {
     const msg = template ? fillTemplate(template.messageContent, row, searchedFor) : FALLBACK_MESSAGE(row, searchedFor);
     window.open(`https://wa.me/${mobile}?text=${encodeURIComponent(msg)}`, '_blank');
     setPickerRow(null);
-    if (row.customerId) {
-      try { await customerAPI.logMessage(row.customerId, 'WHATSAPP', `Maintenance reminder — ${searchedFor?.partName} (${template ? template.name : 'default message'})`); } catch {}
-    }
   };
   const openPicker = (row) => templates.length === 0 ? sendWithTemplate(row, null) : setPickerRow(row);
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Phone, MessageCircle, Wrench, AlertTriangle, X } from 'lucide-react';
-import { maintenanceAPI, templateAPI, customerAPI } from '../../services/api';
+import { maintenanceAPI, templateAPI } from '../../services/api';
 import Pagination from '../../components/admin/Pagination';
 import { formatDate, useToast } from '../../components/admin/AdminHelpers';
 
@@ -73,13 +73,6 @@ export default function AdminMaintenance() {
     window.open(`https://wa.me/${mobile}?text=${encodeURIComponent(msg)}`, '_blank');
     setPickerRow(null);
     show('Opening WhatsApp…');
-
-    // Log to the customer's history timeline (best-effort)
-    if (row.customerId) {
-      try {
-        await customerAPI.logMessage(row.customerId, 'WHATSAPP', `Maintenance reminder — ${searchedFor?.partName} (${template ? template.name : 'default message'})`);
-      } catch { /* logging is best-effort */ }
-    }
   };
 
   const openPicker = (row) => {

@@ -98,6 +98,7 @@ export const seedCleanupAPI = {
   execute: () => api.post('/admin/seed-cleanup/execute'),
   cleanHistoryNoise: () => api.post('/admin/seed-cleanup/history-noise/execute'),
   fixLegacyServiceDates: () => api.post('/admin/seed-cleanup/legacy-service-dates/execute'),
+  fixCustomerSince: () => api.post('/admin/seed-cleanup/customer-since/execute'),
 };
 
 export const leadAPI = {

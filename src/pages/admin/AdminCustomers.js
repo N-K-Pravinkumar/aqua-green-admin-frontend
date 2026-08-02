@@ -139,14 +139,16 @@ export default function AdminCustomers() {
               const d = r.data.data;
               const n1 = d.autoCreatedHistoryNoise || 0;
               const n2 = d.legacyServiceDateMismatches || 0;
-              if (n1 === 0 && n2 === 0) { show('Nothing to fix — dates and history are already clean'); return; }
-              const msg = `Found:\n${n1} fake "message" history entries (auto-generated on customer creation, never actually sent)\n${n2} imported service tickets where the shown date doesn't match the actual billed/completed date.\n\nFix both now? Only these are touched — no amounts, statuses, or other records are changed.`;
+              const n3 = d.customerSinceMismatches || 0;
+              if (n1 === 0 && n2 === 0 && n3 === 0) { show('Nothing to fix — dates and history are already clean'); return; }
+              const msg = `Found:\n${n1} fake "message" history entries (auto-generated on customer creation, never actually sent)\n${n2} imported service tickets where the shown date doesn't match the actual billed/completed date\n${n3} customers whose "Since" date is just their import date, not their actual first sale/service.\n\nFix all of these now? Only these are touched — no amounts, statuses, or other records are changed.`;
               if (!window.confirm(msg)) return;
-              const [r1, r2] = await Promise.all([
+              const [r1, r2, r3] = await Promise.all([
                 seedCleanupAPI.cleanHistoryNoise(),
                 seedCleanupAPI.fixLegacyServiceDates(),
+                seedCleanupAPI.fixCustomerSince(),
               ]);
-              show(`${r1.data.message} · ${r2.data.message}`);
+              show(`${r1.data.message} · ${r2.data.message} · ${r3.data.message}`);
               load();
             } catch { show('Fix failed', 'error'); }
           }}>Fix Dates &amp; History</button>
